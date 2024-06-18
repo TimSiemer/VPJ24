@@ -1,0 +1,808 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="MATLAB0" Id="{510bdbfc-b091-4740-9d97-cb29f49b7317}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK MATLAB0
+VAR_INPUT
+	ssMethodType: SINT;
+	start_x: LREAL;
+	start_y: LREAL;
+	goal_x: LREAL;
+	goal_y: LREAL;
+	AGV_one_x: LREAL;
+	AGV_one_y: LREAL;
+	AGV_two_x: LREAL;
+	AGV_two_y: LREAL;
+	AGV_three_x: LREAL;
+	AGV_three_y: LREAL;
+END_VAR
+VAR_OUTPUT
+	y: ARRAY[0..19] OF LREAL;
+END_VAR
+VAR
+	goalNode: ARRAY[0..3] OF LREAL;
+	nodeIdx: LREAL;
+	nodes: ARRAY[0..1599] OF LREAL;
+	i: LREAL;
+	ndist: ARRAY[0..399] OF LREAL;
+	neighbor_count: LREAL;
+	C_min: LREAL;
+	b_nodes: ARRAY[0..1603] OF LREAL;
+	j: DINT;
+	b_i: DINT;
+	b_j: DINT;
+	c_j: DINT;
+	k: DINT;
+	d_j: DINT;
+	e_j: DINT;
+	b_r: LREAL;
+	b_b_r: LREAL;
+	b_iindx: DINT;
+	q_rand: ARRAY[0..1] OF LREAL;
+	nodes_0: ARRAY[0..1] OF LREAL;
+	AGV_one_x_0: ARRAY[0..2] OF LREAL;
+	q_new: ARRAY[0..1] OF LREAL;
+	nodes_1: ARRAY[0..1] OF BOOL;
+	i_0: DINT;
+	q_rand_idx_0: LREAL;
+	q_rand_idx_1: LREAL;
+	qnew_idx_0: LREAL;
+	qnew_idx_1: LREAL;
+	q_new_idx_2: LREAL;
+	q_new_idx_3: DINT;
+	r_tmp: LREAL;
+	r_tmp_tmp: LREAL;
+	nodes_tmp: LREAL;
+	ndist_tmp: LREAL;
+	qnew_idx_0_tmp: LREAL;
+	exitg1: DINT;
+	temp1: BOOL;
+	temp2: BOOL;
+	temp3: BOOL;
+	temp4: BOOL;
+	i0_minimum: minimum;
+	i0_eml_rand_mt19937ar: eml_rand_mt19937ar;
+	i0_eml_rand_shr3cong: eml_rand_shr3cong;
+	i0_eml_rand_mcg16807: eml_rand_mcg16807;
+	i0_flip: flip;
+	b_method: UDINT;
+	state_g: ARRAY[0..624] OF UDINT;
+	state_d: ARRAY[0..1] OF UDINT;
+	state: UDINT;
+	b: ARRAY[0..624] OF UDINT := [5489, 1301868182, 2938499221, 2950281878, 1875628136, 751856242, 944701696, 2243192071, 694061057, 219885934, 2066767472, 3182869408, 485472502, 2336857883, 1071588843, 3418470598, 951210697, 3693558366, 2923482051, 1793174584, 2982310801, 1586906132, 1951078751, 1808158765, 1733897588, 431328322, 4202539044, 530658942, 1714810322, 3025256284, 3342585396, 1937033938, 2640572511, 1654299090, 3692403553, 4233871309, 3497650794, 862629010, 2943236032, 2426458545, 1603307207, 1133453895, 3099196360, 2208657629, 2747653927, 931059398, 761573964, 3157853227, 785880413, 730313442, 124945756, 2937117055, 3295982469, 1724353043, 3021675344, 3884886417, 4010150098, 4056961966, 699635835, 2681338818, 1339167484, 720757518, 2800161476, 2376097373, 1532957371, 3902664099, 1238982754, 3725394514, 3449176889, 3570962471, 4287636090, 4087307012, 3603343627, 202242161, 2995682783, 1620962684, 3704723357, 371613603, 2814834333, 2111005706, 624778151, 2094172212, 4284947003, 1211977835, 991917094, 1570449747, 2962370480, 1259410321, 170182696, 146300961, 2836829791, 619452428, 2723670296, 1881399711, 1161269684, 1675188680, 4132175277, 780088327, 3409462821, 1036518241, 1834958505, 3048448173, 161811569, 618488316, 44795092, 3918322701, 1924681712, 3239478144, 383254043, 4042306580, 2146983041, 3992780527, 3518029708, 3545545436, 3901231469, 1896136409, 2028528556, 2339662006, 501326714, 2060962201, 2502746480, 561575027, 581893337, 3393774360, 1778912547, 3626131687, 2175155826, 319853231, 986875531, 819755096, 2915734330, 2688355739, 3482074849, 2736559, 2296975761, 1029741190, 2876812646, 690154749, 579200347, 4027461746, 1285330465, 2701024045, 4117700889, 759495121, 3332270341, 2313004527, 2277067795, 4131855432, 2722057515, 1264804546, 3848622725, 2211267957, 4100593547, 959123777, 2130745407, 3194437393, 486673947, 1377371204, 17472727, 352317554, 3955548058, 159652094, 1232063192, 3835177280, 49423123, 3083993636, 733092, 2120519771, 2573409834, 1112952433, 3239502554, 761045320, 1087580692, 2540165110, 641058802, 1792435497, 2261799288, 1579184083, 627146892, 2165744623, 2200142389, 2167590760, 2381418376, 1793358889, 3081659520, 1663384067, 2009658756, 2689600308, 739136266, 2304581039, 3529067263, 591360555, 525209271, 3131882996, 294230224, 2076220115, 3113580446, 1245621585, 1386885462, 3203270426, 123512128, 12350217, 354956375, 4282398238, 3356876605, 3888857667, 157639694, 2616064085, 1563068963, 2762125883, 4045394511, 4180452559, 3294769488, 1684529556, 1002945951, 3181438866, 22506664, 691783457, 2685221343, 171579916, 3878728600, 2475806724, 2030324028, 3331164912, 1708711359, 1970023127, 2859691344, 2588476477, 2748146879, 136111222, 2967685492, 909517429, 2835297809, 3206906216, 3186870716, 341264097, 2542035121, 3353277068, 548223577, 3170936588, 1678403446, 297435620, 2337555430, 466603495, 1132321815, 1208589219, 696392160, 894244439, 2562678859, 470224582, 3306867480, 201364898, 2075966438, 1767227936, 2929737987, 3674877796, 2654196643, 3692734598, 3528895099, 2796780123, 3048728353, 842329300, 191554730, 2922459673, 3489020079, 3979110629, 1022523848, 2202932467, 3583655201, 3565113719, 587085778, 4176046313, 3013713762, 950944241, 396426791, 3784844662, 3477431613, 3594592395, 2782043838, 3392093507, 3106564952, 2829419931, 1358665591, 2206918825, 3170783123, 31522386, 2988194168, 1782249537, 1105080928, 843500134, 1225290080, 1521001832, 3605886097, 2802786495, 2728923319, 3996284304, 903417639, 1171249804, 1020374987, 2824535874, 423621996, 1988534473, 2493544470, 1008604435, 1756003503, 1488867287, 1386808992, 732088248, 1780630732, 2482101014, 976561178, 1543448953, 2602866064, 2021139923, 1952599828, 2360242564, 2117959962, 2753061860, 2388623612, 4138193781, 2962920654, 2284970429, 766920861, 3457264692, 2879611383, 815055854, 2332929068, 1254853997, 3740375268, 3799380844, 4091048725, 2006331129, 1982546212, 686850534, 1907447564, 2682801776, 2780821066, 998290361, 1342433871, 4195430425, 607905174, 3902331779, 2454067926, 1708133115, 1170874362, 2008609376, 3260320415, 2211196135, 433538229, 2728786374, 2189520818, 262554063, 1182318347, 3710237267, 1221022450, 715966018, 2417068910, 2591870721, 2870691989, 3418190842, 4238214053, 1540704231, 1575580968, 2095917976, 4078310857, 2313532447, 2110690783, 4056346629, 4061784526, 1123218514, 551538993, 597148360, 4120175196, 3581618160, 3181170517, 422862282, 3227524138, 1713114790, 662317149, 1230418732, 928171837, 1324564878, 1928816105, 1786535431, 2878099422, 3290185549, 539474248, 1657512683, 552370646, 1671741683, 3655312128, 1552739510, 2605208763, 1441755014, 181878989, 3124053868, 1447103986, 3183906156, 1728556020, 3502241336, 3055466967, 1013272474, 818402132, 1715099063, 2900113506, 397254517, 4194863039, 1009068739, 232864647, 2540223708, 2608288560, 2415367765, 478404847, 3455100648, 3182600021, 2115988978, 434269567, 4117179324, 3461774077, 887256537, 3545801025, 286388911, 3451742129, 1981164769, 786667016, 3310123729, 3097811076, 2224235657, 2959658883, 3370969234, 2514770915, 3345656436, 2677010851, 2206236470, 271648054, 2342188545, 4292848611, 3646533909, 3754009956, 3803931226, 4160647125, 1477814055, 4043852216, 1876372354, 3133294443, 3871104810, 3177020907, 2074304428, 3479393793, 759562891, 164128153, 1839069216, 2114162633, 3989947309, 3611054956, 1333547922, 835429831, 494987340, 171987910, 1252001001, 370809172, 3508925425, 2535703112, 1276855041, 1922855120, 835673414, 3030664304, 613287117, 171219893, 3423096126, 3376881639, 2287770315, 1658692645, 1262815245, 3957234326, 1168096164, 2968737525, 2655813712, 2132313144, 3976047964, 326516571, 353088456, 3679188938, 3205649712, 2654036126, 1249024881, 880166166, 691800469, 2229503665, 1673458056, 4032208375, 1851778863, 2563757330, 376742205, 1794655231, 340247333, 1505873033, 396524441, 879666767, 3335579166, 3260764261, 3335999539, 506221798, 4214658741, 975887814, 2080536343, 3360539560, 571586418, 138896374, 4234352651, 2737620262, 3928362291, 1516365296, 38056726, 3599462320, 3585007266, 3850961033, 471667319, 1536883193, 2310166751, 1861637689, 2530999841, 4139843801, 2710569485, 827578615, 2012334720, 2907369459, 3029312804, 2820112398, 1965028045, 35518606, 2478379033, 643747771, 1924139484, 4123405127, 3811735531, 3429660832, 3285177704, 1948416081, 1311525291, 1183517742, 1739192232, 3979815115, 2567840007, 4116821529, 213304419, 4125718577, 1473064925, 2442436592, 1893310111, 4195361916, 3747569474, 828465101, 2991227658, 750582866, 1205170309, 1409813056, 678418130, 1171531016, 3821236156, 354504587, 4202874632, 3882511497, 1893248677, 1903078632, 26340130, 2069166240, 3657122492, 3725758099, 831344905, 811453383, 3447711422, 2434543565, 4166886888, 3358210805, 4142984013, 2988152326, 3527824853, 982082992, 2809155763, 190157081, 3340214818, 2365432395, 2548636180, 2894533366, 3474657421, 2372634704, 2845748389, 43024175, 2774226648, 1987702864, 3186502468, 453610222, 4204736567, 1392892630, 2471323686, 2470534280, 3541393095, 4269885866, 3909911300, 759132955, 1482612480, 667715263, 1795580598, 2337923983, 3390586366, 581426223, 1515718634, 476374295, 705213300, 363062054, 2084697697, 2407503428, 2292957699, 2426213835, 2199989172, 1987356470, 4026755612, 2147252133, 270400031, 1367820199, 2369854699, 2844269403, 79981964, 624];
+	b_b: ARRAY[0..3] OF LREAL := [3.5, 11.5, 22.0, 6.0];
+	c: ARRAY[0..3] OF LREAL := [28.0, 15.0, 7.0, 2.5];
+	b_d: ARRAY[0..3] OF LREAL := [0.0, 0.0, 35.0, 3.0];
+	e: ARRAY[0..3] OF LREAL := [0.0, 3.0, 2.0, 14.5];
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+
+CASE ssMethodType OF
+    SS_INITIALIZE: 
+        (* SystemInitialize for MATLAB Function: '<Root>/MATLAB Function' *)
+
+        FOR b_iindx := 0 TO 624 DO 
+            state_g[b_iindx] := b[b_iindx];
+        END_FOR;
+
+        b_method := 7;
+        state := 1144108930;
+        (* SystemInitialize for MATLAB Function: '<Root>/MATLAB Function' *)
+        state_d[0] := 362436069;
+        state_d[1] := 521288629;
+    SS_STEP: 
+        (* MATLAB Function: '<Root>/MATLAB Function' *)
+        (* Groesse des AGV mit Sicherheitsabstand *)
+        (* MATLAB Function 'MATLAB Function': '<S1>:1' *)
+        (* '<S1>:1:3' AGV_size = 2.1; *)
+        (* Prüft, ob Goal Pos in einem Hindernis liegt *)
+        (* '<S1>:1:6' if fun_IsGoalPosValid(goal_x, goal_y,AGV_one_x,AGV_one_y,AGV_two_x,AGV_two_y,AGV_three_x,AGV_three_y,AGV_size) *)
+
+        IF fun_IsGoalPosValid(Ilr_RoboPosX := goal_x, Ilr_RoboPosY := goal_y, AGV_one_x := AGV_one_x, AGV_one_y := AGV_one_y, AGV_two_x := AGV_two_x, AGV_two_y := AGV_two_y, AGV_three_x := AGV_three_x, AGV_three_y := AGV_three_y, AGV_size := 2.1) THEN 
+            (* Kartengröße => 1 Feld = 200mm *)
+            (* '<S1>:1:8' x_max = 35; *)
+            (* Breite *)
+            (* '<S1>:1:9' y_max = 17.5; *)
+            (* Höhe   *)
+            (* Hindernisse in der Karte *)
+            (* '<S1>:1:12' obstacle_AGV_one = [AGV_one_x-AGV_size,AGV_one_y-AGV_size,(AGV_size*2),(AGV_size*2)]; *)
+            (* Robo 1 *)
+            (* '<S1>:1:13' obstacle_AGV_two = [AGV_two_x-AGV_size,AGV_two_y-AGV_size,(AGV_size*2),(AGV_size*2)]; *)
+            (* Robo 2 *)
+            (* '<S1>:1:14' obstacle_AGV_three = [AGV_three_x-AGV_size,AGV_three_y-AGV_size,(AGV_size*2),(AGV_size*2)]; *)
+            (* Robo 3 *)
+            (* '<S1>:1:16' obstacle_west = [0,0,35,3]; *)
+            (* Nicht befahrbahrer Bereich  *)
+            (* '<S1>:1:17' obstacle_south = [0,3,2,14.5]; *)
+            (* Nicht befahrbahrer Bereich *)
+            (* '<S1>:1:18' obstacle_CA = [3.5,11.5,22,6]; *)
+            (* Constrained Area *)
+            (* '<S1>:1:19' obstacle_LA = [28,15,7,2.5]; *)
+            (* Charging Area *)
+            (* RRT Parameter *)
+            (* '<S1>:1:22' EPS = 2; *)
+            (* Schrittweite *)
+            (* '<S1>:1:23' numNodes = 400; *)
+            (* Anzahl der Punkte die in die Karte geworfen werden *)
+            (* '<S1>:1:25' startNode = [start_x, start_y, 0, 0]; *)
+            (* Startpose [x, y, cost, parent] *)
+            (* '<S1>:1:26' goalNode = [goal_x, goal_y, 0, 0]; *)
+            goalNode[0] := goal_x;
+            goalNode[1] := goal_y;
+            goalNode[2] := 0.0;
+            (* Zielpose  [x, y, cost, parent] *)
+            (* '<S1>:1:28' nodeIdx = 1; *)
+            nodeIdx := 1.0;
+            (* Knotenindex *)
+            (* '<S1>:1:29' nodes = zeros(numNodes,4); *)
+
+            FOR b_iindx := 0 TO 1599 DO 
+                nodes[b_iindx] := 0.0;
+            END_FOR;
+
+            (* Punkte *)
+            (* '<S1>:1:31' for j = 1:1:numNodes *)
+
+            FOR j := 0 TO 399 DO 
+                (* '<S1>:1:32' nodes(j,1) = 10000; *)
+                nodes[j] := 10000.0;
+                (* '<S1>:1:33' nodes(j,2) = 10000; *)
+                nodes[j + 400] := 10000.0;
+            END_FOR;
+
+            (* '<S1>:1:36' nodes(1,:) = [startNode]; *)
+            nodes[0] := start_x;
+            nodes[400] := start_y;
+            nodes[800] := 0.0;
+            nodes[1200] := 0.0;
+            (* Startpunkt initialisieren *)
+            (* '<S1>:1:38' for i = 1:1:numNodes *)
+
+            FOR b_i := 0 TO 399 DO 
+                (* Zufaelligen Punkt in der Karte erzeugen *)
+                (* '<S1>:1:41' while 1 *)
+                REPEAT 
+                    exitg1 := 0;
+                    (* '<S1>:1:42' q_rand = [floor(rand(1)*x_max), floor(rand(1)*y_max), 0, 0]; *)
+
+                    CASE b_method OF
+                        4: 
+                            i0_eml_rand_mcg16807(state := state);
+                            b_r := i0_eml_rand_mcg16807.b_r;
+                        5: 
+                            i0_eml_rand_shr3cong(state := state_d);
+                            b_r := i0_eml_rand_shr3cong.b_r;
+                        ELSE
+                            i0_eml_rand_mt19937ar(state := state_g);
+                            b_r := i0_eml_rand_mt19937ar.b_r;
+                    END_CASE;
+
+
+                    CASE b_method OF
+                        4: 
+                            i0_eml_rand_mcg16807(state := state);
+                            b_b_r := i0_eml_rand_mcg16807.b_r;
+                        5: 
+                            i0_eml_rand_shr3cong(state := state_d);
+                            b_b_r := i0_eml_rand_shr3cong.b_r;
+                        ELSE
+                            i0_eml_rand_mt19937ar(state := state_g);
+                            b_b_r := i0_eml_rand_mt19937ar.b_r;
+                    END_CASE;
+
+                    nodes_tmp := rt_floord(u := b_r * 35.0);
+                    ndist_tmp := rt_floord(u := b_b_r * 17.5);
+                    (* Nur wenn der Punkt in der OpenArea liegt und nicht im *)
+                    (* Bereich eines Roboter dann soll dieser der Liste hinzugefügt *)
+                    (* werden *)
+                    (* '<S1>:1:47' if fun_PosIsValid(q_rand(1),q_rand(2),AGV_one_x,AGV_one_y,AGV_two_x,AGV_two_y,AGV_three_x,AGV_three_y,AGV_size) *)
+                    (* Definition der Bereiche *)
+                    (* 'fun_PosIsValid:4' r_BoxPositionXOpenArea_1 = 2; *)
+                    (* 'fun_PosIsValid:5' r_BoxPositionYOpenArea_1 = 3.5; *)
+                    (* 'fun_PosIsValid:6' r_BoxSizeXOpenArea_1 = 1.5; *)
+                    (* 'fun_PosIsValid:7' r_BoxSizeYOpenArea_1 = 14; *)
+                    (* 'fun_PosIsValid:8' r_BoxPositionXOpenArea_2 = 3.5; *)
+                    (* 'fun_PosIsValid:9' r_BoxPositionYOpenArea_2 = 3.5; *)
+                    (* 'fun_PosIsValid:10' r_BoxSizeXOpenArea_2 = 22; *)
+                    (* 'fun_PosIsValid:11' r_BoxSizeYOpenArea_2 = 8; *)
+                    (* 'fun_PosIsValid:12' r_BoxPositionXOpenArea_3 = 25.5; *)
+                    (* 'fun_PosIsValid:13' r_BoxPositionYOpenArea_3 = 3.5; *)
+                    (* 'fun_PosIsValid:14' r_BoxSizeXOpenArea_3 = 2.5; *)
+                    (* 'fun_PosIsValid:15' r_BoxSizeYOpenArea_3 = 14; *)
+                    (* 'fun_PosIsValid:16' r_BoxPositionXOpenArea_4 = 28; *)
+                    (* 'fun_PosIsValid:17' r_BoxPositionYOpenArea_4 = 3.5; *)
+                    (* 'fun_PosIsValid:18' r_BoxSizeXOpenArea_4 = 7; *)
+                    (* 'fun_PosIsValid:19' r_BoxSizeYOpenArea_4 = 11.5; *)
+                    (* Überprüfung der Bereiche *)
+                    (* 'fun_PosIsValid:23' if ((r_BoxPositionXOpenArea_1 <= Ilr_RoboPosX && Ilr_RoboPosX <= r_BoxPositionXOpenArea_1 + r_BoxSizeXOpenArea_1) && ... *)
+                    (* 'fun_PosIsValid:24'         (r_BoxPositionYOpenArea_1 <= Ilr_RoboPosY && Ilr_RoboPosY <= r_BoxPositionYOpenArea_1 + r_BoxSizeYOpenArea_1) || ... *)
+                    (* 'fun_PosIsValid:25'         (r_BoxPositionXOpenArea_2 <= Ilr_RoboPosX && Ilr_RoboPosX <= r_BoxPositionXOpenArea_2 + r_BoxSizeXOpenArea_2) && ... *)
+                    (* 'fun_PosIsValid:26'         (r_BoxPositionYOpenArea_2 <= Ilr_RoboPosY && Ilr_RoboPosY <= r_BoxPositionYOpenArea_2 + r_BoxSizeYOpenArea_2) || ... *)
+                    (* 'fun_PosIsValid:27'         (r_BoxPositionXOpenArea_3 <= Ilr_RoboPosX && Ilr_RoboPosX <= r_BoxPositionXOpenArea_3 + r_BoxSizeXOpenArea_3) && ... *)
+                    (* 'fun_PosIsValid:28'         (r_BoxPositionYOpenArea_3 <= Ilr_RoboPosY && Ilr_RoboPosY <= r_BoxPositionYOpenArea_3 + r_BoxSizeYOpenArea_3) || ... *)
+                    (* 'fun_PosIsValid:29'         (r_BoxPositionXOpenArea_4 <= Ilr_RoboPosX && Ilr_RoboPosX <= r_BoxPositionXOpenArea_4 + r_BoxSizeXOpenArea_4) && ... *)
+                    (* 'fun_PosIsValid:30'         (r_BoxPositionYOpenArea_4 <= Ilr_RoboPosY && Ilr_RoboPosY <= r_BoxPositionYOpenArea_4 + r_BoxSizeYOpenArea_4)) &&... *)
+                    (* 'fun_PosIsValid:31'         (AgvSize <= sqrt((Ilr_RoboPosX- AGV_one_x)^2+(Ilr_RoboPosY-AGV_one_y)^2))&&... *)
+                    (* 'fun_PosIsValid:32'         (AgvSize <= sqrt((Ilr_RoboPosX- AGV_two_x)^2+(Ilr_RoboPosY-AGV_two_y)^2))&&... *)
+                    (* 'fun_PosIsValid:33'         (AgvSize <= sqrt((Ilr_RoboPosX- AGV_three_x)^2+(Ilr_RoboPosY-AGV_three_y)^2)) *)
+                    temp1 := FALSE;
+                    temp2 := FALSE;
+                    temp3 := FALSE;
+                    temp4 := FALSE;
+
+                    IF 2.0 <= nodes_tmp THEN 
+
+                        IF nodes_tmp <= 3.5 THEN 
+
+                            IF 3.5 <= ndist_tmp THEN 
+
+                                IF ndist_tmp <= 17.5 THEN 
+                                    temp1 := TRUE;
+                                ELSE 
+                                    temp4 := TRUE;
+                                END_IF;
+
+                            ELSE 
+                                temp4 := TRUE;
+                            END_IF;
+
+                        ELSE 
+                            temp4 := TRUE;
+                        END_IF;
+
+                    ELSE 
+                        temp4 := TRUE;
+                    END_IF;
+
+
+                    IF temp4 THEN 
+
+                        IF 3.5 <= nodes_tmp THEN 
+
+                            IF nodes_tmp <= 25.5 THEN 
+
+                                IF 3.5 <= ndist_tmp THEN 
+
+                                    IF ndist_tmp <= 11.5 THEN 
+                                        temp1 := TRUE;
+                                    ELSE 
+                                        temp3 := TRUE;
+                                    END_IF;
+
+                                ELSE 
+                                    temp3 := TRUE;
+                                END_IF;
+
+                            ELSE 
+                                temp3 := TRUE;
+                            END_IF;
+
+                        ELSE 
+                            temp3 := TRUE;
+                        END_IF;
+
+                    END_IF;
+
+
+                    IF temp3 THEN 
+
+                        IF 25.5 <= nodes_tmp THEN 
+
+                            IF nodes_tmp <= 28.0 THEN 
+
+                                IF 3.5 <= ndist_tmp THEN 
+
+                                    IF ndist_tmp <= 17.5 THEN 
+                                        temp1 := TRUE;
+                                    ELSE 
+                                        temp2 := TRUE;
+                                    END_IF;
+
+                                ELSE 
+                                    temp2 := TRUE;
+                                END_IF;
+
+                            ELSE 
+                                temp2 := TRUE;
+                            END_IF;
+
+                        ELSE 
+                            temp2 := TRUE;
+                        END_IF;
+
+                    END_IF;
+
+
+                    IF temp2 THEN 
+
+                        IF 28.0 <= nodes_tmp THEN 
+
+                            IF nodes_tmp <= 35.0 THEN 
+
+                                IF 3.5 <= ndist_tmp THEN 
+
+                                    IF ndist_tmp <= 15.0 THEN 
+                                        temp1 := TRUE;
+                                    END_IF;
+
+                                END_IF;
+
+                            END_IF;
+
+                        END_IF;
+
+                    END_IF;
+
+
+                    IF temp1 THEN 
+                        b_r := nodes_tmp - AGV_one_x;
+                        b_b_r := ndist_tmp - AGV_one_y;
+
+                        IF 2.1 <= SQRT((b_r * b_r) + (b_b_r * b_b_r)) THEN 
+                            b_r := nodes_tmp - AGV_two_x;
+                            b_b_r := ndist_tmp - AGV_two_y;
+
+                            IF 2.1 <= SQRT((b_r * b_r) + (b_b_r * b_b_r)) THEN 
+                                b_r := nodes_tmp - AGV_three_x;
+                                b_b_r := ndist_tmp - AGV_three_y;
+
+                                IF 2.1 <= SQRT((b_r * b_r) + (b_b_r * b_b_r)) THEN 
+                                    exitg1 := 1;
+                                END_IF;
+
+                            END_IF;
+
+                        END_IF;
+
+                    END_IF;
+
+                UNTIL NOT(exitg1 = 0)
+                END_REPEAT;
+                (* Robo in OpenArea *)
+                (* 'fun_PosIsValid:37' x_IsInside = true; *)
+                (* Abbrechen wenn Ziel erreicht wurde *)
+                (* '<S1>:1:53' for j = 1:1:size(nodes, 1) *)
+                (* Auswahl des nächstgelegenen Knotens aus der bestehenden Liste, von dem aus verzweigt werden soll *)
+                (* '<S1>:1:60' ndist = zeros(1, numNodes); *)
+                (* '<S1>:1:62' [~,ndistSize] = size(ndist); *)
+                (* '<S1>:1:64' for j = 1:1:ndistSize *)
+                (* Entfernung vom neuen Knoten zu jeden anderen Konten bestimmen *)
+                (* '<S1>:1:69' for j = 1:1:size(nodes, 1) *)
+
+                FOR b_j := 0 TO 399 DO 
+                    (* '<S1>:1:70' ndist(j) = dist(nodes(j, 1:2), q_rand(1:2)); *)
+                    (* 'dist:2' d = sqrt((q1(1)-q2(1))^2 + (q1(2)-q2(2))^2); *)
+                    b_r := nodes[b_j] - nodes_tmp;
+                    b_b_r := nodes[b_j + 400] - ndist_tmp;
+                    ndist[b_j] := SQRT((b_r * b_r) + (b_b_r * b_b_r));
+                END_FOR;
+
+                (* Minimale Distanz bestimmen *)
+                (* '<S1>:1:74' [val, idx] = min(ndist); *)
+                i0_minimum(x := ndist);
+                b_r := i0_minimum.ex;
+                b_iindx := i0_minimum.idx;
+                (* '<S1>:1:76' q_near = nodes(idx, :); *)
+                (* '<S1>:1:78' q_new = [0, 0, 0, 0]; *)
+                q_new_idx_3 := 0;
+                (* Wenn neuer Punkt weiter weg als Schrittweite dann wird neuer *)
+                (* Punkt auf maximale Schrittweite näher an alten Punkt rangezogen *)
+                (* '<S1>:1:82' q_new(1:2) = steer(q_rand(1:2), q_near(1:2), val, EPS); *)
+                (* 'steer:2' qnew = [0 0]; *)
+                (* Steer towards qn with maximum step size of eps *)
+                (* 'steer:5' if val >= eps *)
+
+                IF b_r >= 2.0 THEN 
+                    (* 'steer:6' qnew(1) = qn(1) + ((qr(1)-qn(1))*eps)/dist(qr,qn); *)
+                    (* 'dist:2' d = sqrt((q1(1)-q2(1))^2 + (q1(2)-q2(2))^2); *)
+                    r_tmp_tmp := nodes[b_iindx - 1];
+                    r_tmp := nodes_tmp - r_tmp_tmp;
+                    b_b_r := nodes[b_iindx + 399];
+                    b_r := ndist_tmp - b_b_r;
+                    qnew_idx_0_tmp := SQRT((r_tmp * r_tmp) + (b_r * b_r));
+                    qnew_idx_0 := ((r_tmp * 2.0) / qnew_idx_0_tmp) + r_tmp_tmp;
+                    (* 'steer:7' qnew(2) = qn(2) + ((qr(2)-qn(2))*eps)/dist(qr,qn); *)
+                    (* 'dist:2' d = sqrt((q1(1)-q2(1))^2 + (q1(2)-q2(2))^2); *)
+                    qnew_idx_1 := ((b_r * 2.0) / qnew_idx_0_tmp) + b_b_r;
+                ELSE 
+                    (* 'steer:8' else *)
+                    (* 'steer:9' qnew(1) = qr(1); *)
+                    qnew_idx_0 := nodes_tmp;
+                    (* 'steer:10' qnew(2) = qr(2); *)
+                    qnew_idx_1 := ndist_tmp;
+                END_IF;
+
+                (* 'steer:12' A = [qnew(1), qnew(2)]; *)
+                (* Kontrolle, ob zwischen neuen und alten Punkt ein Hinderniss liegt *)
+                (* '<S1>:1:85' if  noCollision(q_rand(1:2), q_near(1:2), obstacle_CA)      && ... *)
+                (* '<S1>:1:86'             noCollision(q_rand(1:2), q_near(1:2), obstacle_LA)      && ... *)
+                (* '<S1>:1:87'             noCollision(q_rand(1:2), q_near(1:2), obstacle_west)    && ... *)
+                (* '<S1>:1:88'             noCollision(q_rand(1:2), q_near(1:2), obstacle_south)   && ... *)
+                (* '<S1>:1:89'             noCollisionCircle(q_rand(1:2), q_near(1:2), [AGV_one_x AGV_one_y 2.2])&& ... *)
+                (* '<S1>:1:90'             noCollisionCircle(q_rand(1:2), q_near(1:2), [AGV_two_x AGV_two_y 2.2])&& ... *)
+                (* '<S1>:1:91'             noCollisionCircle(q_rand(1:2), q_near(1:2), [AGV_three_x AGV_three_y 2.2]) *)
+                q_rand[0] := nodes_tmp;
+                r_tmp_tmp := nodes[b_iindx - 1];
+                nodes_0[0] := r_tmp_tmp;
+                q_rand[1] := ndist_tmp;
+                r_tmp := nodes[b_iindx + 399];
+                nodes_0[1] := r_tmp;
+
+                IF noCollision(n2 := q_rand, n1 := nodes_0, o := b_b) <> 0.0 THEN 
+                    q_rand[0] := nodes_tmp;
+                    nodes_0[0] := r_tmp_tmp;
+                    q_rand[1] := ndist_tmp;
+                    nodes_0[1] := r_tmp;
+
+                    IF noCollision(n2 := q_rand, n1 := nodes_0, o := c) <> 0.0 THEN 
+                        q_rand[0] := nodes_tmp;
+                        nodes_0[0] := r_tmp_tmp;
+                        q_rand[1] := ndist_tmp;
+                        nodes_0[1] := r_tmp;
+
+                        IF noCollision(n2 := q_rand, n1 := nodes_0, o := b_d) <> 0.0 THEN 
+                            q_rand[0] := nodes_tmp;
+                            nodes_0[0] := r_tmp_tmp;
+                            q_rand[1] := ndist_tmp;
+                            nodes_0[1] := r_tmp;
+
+                            IF noCollision(n2 := q_rand, n1 := nodes_0, o := e) <> 0.0 THEN 
+                                q_rand[0] := nodes_tmp;
+                                nodes_0[0] := r_tmp_tmp;
+                                q_rand[1] := ndist_tmp;
+                                nodes_0[1] := r_tmp;
+                                AGV_one_x_0[0] := AGV_one_x;
+                                AGV_one_x_0[1] := AGV_one_y;
+                                AGV_one_x_0[2] := 2.2;
+
+                                IF noCollisionCircle(pos_2 := q_rand, pos_1 := nodes_0, circle := AGV_one_x_0) <> 0.0 THEN 
+                                    q_rand[0] := nodes_tmp;
+                                    nodes_0[0] := r_tmp_tmp;
+                                    q_rand[1] := ndist_tmp;
+                                    nodes_0[1] := r_tmp;
+                                    AGV_one_x_0[0] := AGV_two_x;
+                                    AGV_one_x_0[1] := AGV_two_y;
+                                    AGV_one_x_0[2] := 2.2;
+
+                                    IF noCollisionCircle(pos_2 := q_rand, pos_1 := nodes_0, circle := AGV_one_x_0) <> 0.0 THEN 
+                                        q_rand[0] := nodes_tmp;
+                                        nodes_0[0] := r_tmp_tmp;
+                                        q_rand[1] := ndist_tmp;
+                                        nodes_0[1] := r_tmp;
+                                        AGV_one_x_0[0] := AGV_three_x;
+                                        AGV_one_x_0[1] := AGV_three_y;
+                                        AGV_one_x_0[2] := 2.2;
+
+                                        IF noCollisionCircle(pos_2 := q_rand, pos_1 := nodes_0, circle := AGV_one_x_0) <> 0.0 THEN 
+                                            (* '<S1>:1:93' q_new(3) = dist(q_new(1:2), q_near(1:2)) + q_near(3); *)
+                                            (* 'dist:2' d = sqrt((q1(1)-q2(1))^2 + (q1(2)-q2(2))^2); *)
+                                            b_r := qnew_idx_0 - r_tmp_tmp;
+                                            b_b_r := qnew_idx_1 - r_tmp;
+                                            q_new_idx_2 := SQRT((b_r * b_r) + (b_b_r * b_b_r)) + nodes[b_iindx + 799];
+                                            (* Für neuen Punkt wird der am nächsten liegenden Knoten aus der *)
+                                            (* Liste gesucht *)
+                                            (* '<S1>:1:97' q_nearest = zeros(100,4); *)
+
+                                            FOR b_iindx := 0 TO 399 DO 
+                                                ndist[b_iindx] := 0.0;
+                                            END_FOR;
+
+                                            (* '<S1>:1:98' r = 6; *)
+                                            (* '<S1>:1:99' neighbor_count = 1; *)
+                                            neighbor_count := 1.0;
+                                            (* '<S1>:1:101' for j = 1:1:size(nodes, 1) *)
+                                            q_rand[0] := qnew_idx_0;
+                                            q_rand[1] := qnew_idx_1;
+
+                                            FOR c_j := 0 TO 399 DO 
+                                                (* '<S1>:1:102' if noCollision(nodes(j, 1:2), q_new(1:2), obstacle_CA) && ... *)
+                                                (* '<S1>:1:103'                     noCollision(nodes(j, 1:2), q_new(1:2), obstacle_LA) && ... *)
+                                                (* '<S1>:1:104'                     noCollision(nodes(j, 1:2), q_new(1:2), obstacle_west) && ... *)
+                                                (* '<S1>:1:105'                     noCollision(nodes(j, 1:2), q_new(1:2), obstacle_south) && ... *)
+                                                (* '<S1>:1:106'                     noCollisionCircle(nodes(j, 1:2),  q_new(1:2), [AGV_one_x AGV_one_y 2.2])&& ... *)
+                                                (* '<S1>:1:107'                     noCollisionCircle(nodes(j, 1:2),  q_new(1:2), [AGV_two_x AGV_two_y 2.2])&& ... *)
+                                                (* '<S1>:1:108'                     noCollisionCircle(nodes(j, 1:2),  q_new(1:2), [AGV_three_x AGV_three_y 2.2])&& ... *)
+                                                (* '<S1>:1:109'                     dist(nodes(j, 1:2), q_new(1:2)) <= r *)
+                                                nodes_0[0] := nodes[c_j];
+                                                nodes_tmp := nodes[c_j + 400];
+                                                nodes_0[1] := nodes_tmp;
+
+                                                IF noCollision(n2 := nodes_0, n1 := q_rand, o := b_b) <> 0.0 THEN 
+                                                    nodes_0[0] := nodes[c_j];
+                                                    q_new[0] := qnew_idx_0;
+                                                    nodes_0[1] := nodes_tmp;
+                                                    q_new[1] := qnew_idx_1;
+
+                                                    IF noCollision(n2 := nodes_0, n1 := q_new, o := c) <> 0.0 THEN 
+                                                        nodes_0[0] := nodes[c_j];
+                                                        q_new[0] := qnew_idx_0;
+                                                        nodes_0[1] := nodes_tmp;
+                                                        q_new[1] := qnew_idx_1;
+
+                                                        IF noCollision(n2 := nodes_0, n1 := q_new, o := b_d) <> 0.0 THEN 
+                                                            nodes_0[0] := nodes[c_j];
+                                                            q_new[0] := qnew_idx_0;
+                                                            nodes_0[1] := nodes_tmp;
+                                                            q_new[1] := qnew_idx_1;
+
+                                                            IF noCollision(n2 := nodes_0, n1 := q_new, o := e) <> 0.0 THEN 
+                                                                nodes_0[0] := nodes[c_j];
+                                                                q_new[0] := qnew_idx_0;
+                                                                nodes_0[1] := nodes_tmp;
+                                                                q_new[1] := qnew_idx_1;
+                                                                AGV_one_x_0[0] := AGV_one_x;
+                                                                AGV_one_x_0[1] := AGV_one_y;
+                                                                AGV_one_x_0[2] := 2.2;
+
+                                                                IF noCollisionCircle(pos_2 := nodes_0, pos_1 := q_new, circle := AGV_one_x_0) <> 0.0 THEN 
+                                                                    nodes_0[0] := nodes[c_j];
+                                                                    q_new[0] := qnew_idx_0;
+                                                                    nodes_0[1] := nodes_tmp;
+                                                                    q_new[1] := qnew_idx_1;
+                                                                    AGV_one_x_0[0] := AGV_two_x;
+                                                                    AGV_one_x_0[1] := AGV_two_y;
+                                                                    AGV_one_x_0[2] := 2.2;
+
+                                                                    IF noCollisionCircle(pos_2 := nodes_0, pos_1 := q_new, circle := AGV_one_x_0) <> 0.0 THEN 
+                                                                        nodes_0[0] := nodes[c_j];
+                                                                        q_new[0] := qnew_idx_0;
+                                                                        nodes_0[1] := nodes_tmp;
+                                                                        q_new[1] := qnew_idx_1;
+                                                                        AGV_one_x_0[0] := AGV_three_x;
+                                                                        AGV_one_x_0[1] := AGV_three_y;
+                                                                        AGV_one_x_0[2] := 2.2;
+
+                                                                        IF noCollisionCircle(pos_2 := nodes_0, pos_1 := q_new, circle := AGV_one_x_0) <> 0.0 THEN 
+                                                                            (* 'dist:2' d = sqrt((q1(1)-q2(1))^2 + (q1(2)-q2(2))^2); *)
+                                                                            b_r := nodes[c_j] - qnew_idx_0;
+                                                                            b_b_r := nodes_tmp - qnew_idx_1;
+
+                                                                            IF SQRT((b_r * b_r) + (b_b_r * b_b_r)) <= 6.0 THEN 
+                                                                                (* '<S1>:1:110' q_nearest(neighbor_count, :) = nodes(j, :); *)
+                                                                                ndist[TRUNC(neighbor_count) - 1] := nodes[c_j];
+                                                                                ndist[TRUNC(neighbor_count) + 99] := nodes_tmp;
+                                                                                ndist[TRUNC(neighbor_count) + 199] := nodes[c_j + 800];
+                                                                                ndist[TRUNC(neighbor_count) + 299] := nodes[c_j + 1200];
+                                                                                (* '<S1>:1:111' neighbor_count = neighbor_count + 1; *)
+                                                                                neighbor_count := neighbor_count + 1.0;
+                                                                            END_IF;
+
+                                                                        END_IF;
+
+                                                                    END_IF;
+
+                                                                END_IF;
+
+                                                            END_IF;
+
+                                                        END_IF;
+
+                                                    END_IF;
+
+                                                END_IF;
+
+                                            END_FOR;
+
+                                            (* Initialize cost to currently known value *)
+                                            (* '<S1>:1:116' q_min = q_near; *)
+                                            q_rand_idx_0 := r_tmp_tmp;
+                                            q_rand_idx_1 := r_tmp;
+                                            (* '<S1>:1:117' C_min = q_new(3); *)
+                                            C_min := q_new_idx_2;
+                                            (* Iterate through all nearest neighbors to find alternate lower *)
+                                            (* cost paths *)
+                                            (* '<S1>:1:121' for k = 1:1:size(q_nearest, 1) *)
+                                            q_rand[0] := qnew_idx_0;
+                                            q_rand[1] := qnew_idx_1;
+
+                                            FOR k := 0 TO 99 DO 
+                                                (* '<S1>:1:122' if noCollision(q_nearest(k, 1:2), q_new(1:2), obstacle_CA) && ... *)
+                                                (* '<S1>:1:123'                    noCollision(q_nearest(k, 1:2), q_new(1:2), obstacle_LA) && ... *)
+                                                (* '<S1>:1:124'                    noCollision(q_nearest(k, 1:2), q_new(1:2), obstacle_west) && ... *)
+                                                (* '<S1>:1:125'                    noCollision(q_nearest(k, 1:2), q_new(1:2), obstacle_south) && ... *)
+                                                (* '<S1>:1:126'                    noCollisionCircle(q_nearest(k, 1:2),  q_new(1:2), [AGV_one_x AGV_one_y 2.2])&& ... *)
+                                                (* '<S1>:1:127'                    noCollisionCircle(q_nearest(k, 1:2),  q_new(1:2), [AGV_two_x AGV_two_y 2.2])&& ... *)
+                                                (* '<S1>:1:128'                    noCollisionCircle(q_nearest(k, 1:2),  q_new(1:2), [AGV_three_x AGV_three_y 2.2])&& ... *)
+                                                (* '<S1>:1:129'                    q_nearest(k, 3) + dist(q_nearest(k, 1:2), q_new(1:2)) < C_min *)
+                                                nodes_0[0] := ndist[k];
+                                                ndist_tmp := ndist[k + 100];
+                                                nodes_0[1] := ndist_tmp;
+
+                                                IF noCollision(n2 := nodes_0, n1 := q_rand, o := b_b) <> 0.0 THEN 
+                                                    nodes_0[0] := ndist[k];
+                                                    q_new[0] := qnew_idx_0;
+                                                    nodes_0[1] := ndist_tmp;
+                                                    q_new[1] := qnew_idx_1;
+
+                                                    IF noCollision(n2 := nodes_0, n1 := q_new, o := c) <> 0.0 THEN 
+                                                        nodes_0[0] := ndist[k];
+                                                        q_new[0] := qnew_idx_0;
+                                                        nodes_0[1] := ndist_tmp;
+                                                        q_new[1] := qnew_idx_1;
+
+                                                        IF noCollision(n2 := nodes_0, n1 := q_new, o := b_d) <> 0.0 THEN 
+                                                            nodes_0[0] := ndist[k];
+                                                            q_new[0] := qnew_idx_0;
+                                                            nodes_0[1] := ndist_tmp;
+                                                            q_new[1] := qnew_idx_1;
+
+                                                            IF noCollision(n2 := nodes_0, n1 := q_new, o := e) <> 0.0 THEN 
+                                                                nodes_0[0] := ndist[k];
+                                                                q_new[0] := qnew_idx_0;
+                                                                nodes_0[1] := ndist_tmp;
+                                                                q_new[1] := qnew_idx_1;
+                                                                AGV_one_x_0[0] := AGV_one_x;
+                                                                AGV_one_x_0[1] := AGV_one_y;
+                                                                AGV_one_x_0[2] := 2.2;
+
+                                                                IF noCollisionCircle(pos_2 := nodes_0, pos_1 := q_new, circle := AGV_one_x_0) <> 0.0 THEN 
+                                                                    nodes_0[0] := ndist[k];
+                                                                    q_new[0] := qnew_idx_0;
+                                                                    nodes_0[1] := ndist_tmp;
+                                                                    q_new[1] := qnew_idx_1;
+                                                                    AGV_one_x_0[0] := AGV_two_x;
+                                                                    AGV_one_x_0[1] := AGV_two_y;
+                                                                    AGV_one_x_0[2] := 2.2;
+
+                                                                    IF noCollisionCircle(pos_2 := nodes_0, pos_1 := q_new, circle := AGV_one_x_0) <> 0.0 THEN 
+                                                                        nodes_0[0] := ndist[k];
+                                                                        q_new[0] := qnew_idx_0;
+                                                                        nodes_0[1] := ndist_tmp;
+                                                                        q_new[1] := qnew_idx_1;
+                                                                        AGV_one_x_0[0] := AGV_three_x;
+                                                                        AGV_one_x_0[1] := AGV_three_y;
+                                                                        AGV_one_x_0[2] := 2.2;
+
+                                                                        IF noCollisionCircle(pos_2 := nodes_0, pos_1 := q_new, circle := AGV_one_x_0) <> 0.0 THEN 
+                                                                            (* 'dist:2' d = sqrt((q1(1)-q2(1))^2 + (q1(2)-q2(2))^2); *)
+                                                                            r_tmp := ndist[k] - qnew_idx_0;
+                                                                            b_r := ndist_tmp - qnew_idx_1;
+                                                                            b_r := SQRT((r_tmp * r_tmp) + (b_r * b_r)) + ndist[k + 200];
+
+                                                                            IF b_r < C_min THEN 
+                                                                                (* '<S1>:1:130' q_min = q_nearest(k, :); *)
+                                                                                q_rand_idx_0 := ndist[k];
+                                                                                q_rand_idx_1 := ndist_tmp;
+                                                                                (* '<S1>:1:131' C_min = q_nearest(k, 3) + dist(q_nearest(k, 1:2), q_new(1:2)); *)
+                                                                                (* 'dist:2' d = sqrt((q1(1)-q2(1))^2 + (q1(2)-q2(2))^2); *)
+                                                                                C_min := b_r;
+                                                                            END_IF;
+
+                                                                        END_IF;
+
+                                                                    END_IF;
+
+                                                                END_IF;
+
+                                                            END_IF;
+
+                                                        END_IF;
+
+                                                    END_IF;
+
+                                                END_IF;
+
+                                            END_FOR;
+
+                                            (* Update parent to least cost-from node *)
+                                            (* '<S1>:1:137' for j = 1:1:size(nodes, 1) *)
+
+                                            FOR d_j := 0 TO 399 DO 
+                                                (* '<S1>:1:138' if nodes(j, 1:2) == q_min(1:2) *)
+                                                nodes_1[0] := nodes[d_j] = q_rand_idx_0;
+                                                nodes_1[1] := nodes[d_j + 400] = q_rand_idx_1;
+
+                                                IF ifWhileCond(x := nodes_1) THEN 
+                                                    (* '<S1>:1:139' q_new(4) = j; *)
+                                                    q_new_idx_3 := d_j + 1;
+                                                END_IF;
+
+                                            END_FOR;
+
+                                            (* Append to nodes *)
+                                            (* '<S1>:1:144' nodes(nodeIdx+1,:) = q_new; *)
+                                            nodes[TRUNC(nodeIdx + 1.0) - 1] := qnew_idx_0;
+                                            nodes[TRUNC(nodeIdx + 1.0) + 399] := qnew_idx_1;
+                                            nodes[TRUNC(nodeIdx + 1.0) + 799] := q_new_idx_2;
+                                            nodes[TRUNC(nodeIdx + 1.0) + 1199] := DINT_TO_LREAL(q_new_idx_3);
+                                            (* '<S1>:1:145' nodeIdx = nodeIdx + 1; *)
+                                            nodeIdx := nodeIdx + 1.0;
+                                        END_IF;
+
+                                    END_IF;
+
+                                END_IF;
+
+                            END_IF;
+
+                        END_IF;
+
+                    END_IF;
+
+                END_IF;
+
+            END_FOR;
+
+            (* '<S1>:1:149' D = zeros(1, numNodes); *)
+            (* '<S1>:1:151' [~,sizeD] = size(D); *)
+            (* '<S1>:1:153' for j = 1:1:sizeD *)
+            (* '<S1>:1:157' for j = 1:1:size(nodes, 1) *)
+
+            FOR e_j := 0 TO 399 DO 
+                (* '<S1>:1:158' D(j) = dist(nodes(j, 1:2), goalNode(1:2)); *)
+                (* 'dist:2' d = sqrt((q1(1)-q2(1))^2 + (q1(2)-q2(2))^2); *)
+                b_r := nodes[e_j] - goal_x;
+                b_b_r := nodes[e_j + 400] - goal_y;
+                ndist[e_j] := SQRT((b_r * b_r) + (b_b_r * b_b_r));
+            END_FOR;
+
+            (* Search backwards from goal to start to find the optimal least cost path *)
+            (* '<S1>:1:162' [val, idx] = min(D); *)
+            i0_minimum(x := ndist);
+            b_r := i0_minimum.ex;
+            b_iindx := i0_minimum.idx;
+            goalNode[3] := DINT_TO_LREAL(b_iindx);
+            (* '<S1>:1:163' goalNode(4) = idx; *)
+            (* '<S1>:1:164' q_end = goalNode; *)
+            (* '<S1>:1:165' nodes = [nodes; goalNode]; *)
+
+            FOR b_iindx := 0 TO 3 DO 
+
+                FOR i_0 := 0 TO 399 DO 
+                    b_nodes[i_0 + (401 * b_iindx)] := nodes[(400 * b_iindx) + i_0];
+                END_FOR;
+
+                b_nodes[(401 * b_iindx) + 400] := goalNode[b_iindx];
+            END_FOR;
+
+            (* '<S1>:1:167' i = 1; *)
+            i := 1.0;
+            (* '<S1>:1:169' pfad = zeros(10,2); *)
+
+            FOR b_iindx := 0 TO 19 DO 
+                y[b_iindx] := 0.0;
+            END_FOR;
+
+            (* '<S1>:1:171' while q_end(4) ~= 0 *)
+            WHILE goalNode[3] <> 0.0 DO
+                (* '<S1>:1:172' start = q_end(4); *)
+                (* '<S1>:1:174' pfad(i,1) = nodes(start,1); *)
+                b_iindx := TRUNC(goalNode[3]) - 1;
+                y[TRUNC(i) - 1] := b_nodes[TRUNC(goalNode[3]) - 1];
+                (* '<S1>:1:175' pfad(i,2) = nodes(start,2); *)
+                y[TRUNC(i) + 9] := b_nodes[TRUNC(goalNode[3]) + 400];
+                (* '<S1>:1:176' i=i+1; *)
+                i := i + 1.0;
+                (* '<S1>:1:178' q_end = nodes(start, :); *)
+                goalNode[3] := b_nodes[b_iindx + 1203];
+            END_WHILE;
+            (* Wenn Goal Pos im Hindernis wird die Start Pos ausgegeben *)
+        ELSE 
+            (* '<S1>:1:181' else *)
+            (* '<S1>:1:182' pfad = zeros(10,2); *)
+
+            FOR b_iindx := 0 TO 19 DO 
+                y[b_iindx] := 0.0;
+            END_FOR;
+
+            (* '<S1>:1:183' pfad(1,1) = start_x; *)
+            y[0] := start_x;
+            (* '<S1>:1:184' pfad(1,2) = start_y; *)
+            y[10] := start_y;
+        END_IF;
+
+        (* '<S1>:1:186' y = flip(pfad); *)
+        i0_flip(x := y);
+        (* End of MATLAB Function: '<Root>/MATLAB Function' *)
+END_CASE;
+
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="MATLAB0">
+      <LineId Id="3" Count="721" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

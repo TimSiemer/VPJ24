@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="ifWhileCond" Id="{a3f52e22-8cc0-496b-a40e-5f5ecd913a63}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION ifWhileCond : BOOL
+VAR_INPUT
+	x: ARRAY[0..1] OF BOOL;
+END_VAR
+VAR
+	k: DINT;
+	exitg1: DINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+ifWhileCond := TRUE;
+k := 0;
+REPEAT 
+    exitg1 := 0;
+
+    IF k < 2 THEN 
+
+        IF  NOT x[k] THEN 
+            ifWhileCond := FALSE;
+            exitg1 := 1;
+        ELSE 
+            k := k + 1;
+        END_IF;
+
+    ELSE 
+        exitg1 := 1;
+    END_IF;
+
+UNTIL NOT(exitg1 = 0)
+END_REPEAT;
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="ifWhileCond">
+      <LineId Id="3" Count="21" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

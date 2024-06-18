@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <DUT Name="STATUS_IST_POS" Id="{9096263d-fb6d-4732-af28-00cb16635977}">
+    <Declaration><![CDATA[TYPE STATUS_IST_POS EXTENDS RobotSollPose :
+STRUCT
+	i_OnlineCheck : INT;
+	i_CurrentStation : INT;
+	i_TargetStation : INT;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <DUT Name="E_AREA" Id="{387797d1-7c26-4554-8660-3baa32342ed8}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_AREA :
+(
+	NotDef := 0,
+	OpenArea := 1,
+	ConstrainedArea := 2,
+	PrakingArea := 3,
+	LoadArea := 4
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

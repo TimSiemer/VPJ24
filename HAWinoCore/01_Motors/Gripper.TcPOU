@@ -1,0 +1,96 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="Gripper" Id="{e8e3e8d9-589a-4e45-98a4-d88656aec856}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM Gripper
+VAR
+	closeGripperCommand		AT%I* : BOOL:= False;
+	slider					AT%I* : BOOL;
+	partGripped				AT%I* : BOOL;
+	GripperSensor 			AT%I* : BOOL;
+	
+	driveEnable				AT%Q* : BOOL;
+	driveVelocity 			AT%Q* : INT;
+	
+	closeGripper : BOOL := FALSE; 
+	
+	state : CoreGripperControlState := CoreGripperControlState.init;
+	
+	
+	timer : TON;
+	
+	movementTime : TIME := T#750MS; //Timevalue for Grippercurrent
+	
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[closeGripper := Main.getGrippersollClose();
+
+CASE state OF
+///////////////////////////////////////////////////////////////
+ CoreGripperControlState.Init: //Reference opening-drive 
+ 	state := CoreGripperControlState.opening;
+			timer(in := 0, pt:= movementTime); // starts Timer
+///////////////////////////////////////////////////////////////		
+	CoreGripperControlState.Opening:
+		driveEnable:=1;
+		driveVelocity:=25000;
+		timer(IN:=1);
+		
+		IF timer.Q THEN state := CoreGripperControlState.Open;
+		END_IF
+
+// Comment out for simpified use.
+//		IF  closeGripperCommand THEN //negate Command and starts opening Drive
+//			state := CoreGripperControlState.Closing;
+//			timer(in := 0, pt:= movementTime);
+//		END_IF
+///////////////////////////////////////////////////////////////		
+	CoreGripperControlState.Closing:
+		driveEnable:=1;
+		driveVelocity:=-25000;
+		timer(IN:=1);
+		
+		IF timer.Q THEN state := CoreGripperControlState.Closed;
+		END_IF
+		
+		
+//		IF  not closeGripperCommand THEN
+//			state := CoreGripperControlState.Opening;
+//			timer(in := 0, pt:= movementTime);
+//		END_IF
+		
+///////////////////////////////////////////////////////////////	
+	CoreGripperControlState.Open:	
+		driveEnable:=0;
+		driveVelocity:=0;
+		Main.setGripperIstClosed(FALSE);
+		
+		IF  closeGripper THEN
+			state := CoreGripperControlState.Closing;
+			timer(in := 0, pt:= movementTime);
+		END_IF
+///////////////////////////////////////////////////////////////		
+	CoreGripperControlState.Closed:	
+		driveEnable:=0;
+		driveVelocity:=0;
+		Main.setGripperIstClosed(TRUE);
+		
+		IF NOT closeGripper THEN
+			state := CoreGripperControlState.Opening;
+			timer(in := 0, pt:= movementTime);
+		END_IF
+END_CASE
+
+Main.SetGripperSliderAusgeloest(NOT slider);
+Main.setGripperLSAusgeloest(NOT partGripped);]]></ST>
+    </Implementation>
+    <LineIds Name="Gripper">
+      <LineId Id="3" Count="55" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="82" Count="0" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="83" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

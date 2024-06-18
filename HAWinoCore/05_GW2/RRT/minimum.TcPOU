@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="minimum" Id="{f1f80bee-f2e8-4509-aa8a-3c33f46826f3}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK minimum
+VAR_INPUT
+	x: ARRAY[0..399] OF LREAL;
+END_VAR
+VAR_OUTPUT
+	ex: LREAL;
+	idx: DINT;
+END_VAR
+VAR
+	k: DINT;
+	tmp: LREAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+ex := x[0];
+idx := 1;
+
+FOR k := 0 TO 398 DO 
+    tmp := x[k + 1];
+
+    IF ex > tmp THEN 
+        ex := tmp;
+        idx := k + 2;
+    END_IF;
+
+END_FOR;
+
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="minimum">
+      <LineId Id="3" Count="14" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,251 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="MotorGeneral" Id="{52a8293e-07fd-49bc-931b-0fe91db7dc3e}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MotorGeneral
+VAR
+	//init for State Methods
+	MotorsState : CoreDriveState := CoreDriveState.Init;
+	EncoderState : CoreDriveState := CoreDriveState.Init;
+	GripperState : CoreGripperControlState := CoreGripperControlState.Init;	
+	//////in/out Var Motors//////
+	//////in/out Var Gripper//////
+	// in
+	closeGripperCommand		AT%I* : BOOL;
+	slider					AT%I* : BOOL;
+	partGripped				AT%I* : BOOL;
+	//out
+	driveEnable				AT%Q* : BOOL;
+	driveVelocity 			AT%Q* : INT;
+	//////in/out Var Encoder//////
+//INPUTS
+encDataFromMotor1 AT%I*  :UINT:=0;
+encDataFromMotor2 AT%I*  :UINT:=0;
+encDataFromMotor3 AT%I*  :UINT:=0;
+//OUTPUTS
+vXCartesianFromMotors AT%Q*:LREAL:=0;
+vYCartesianFromMotors AT%Q*:LREAL:=0;
+vthetaCartesianFromMotors AT%Q*:LREAL:=0;
+	/////////////////////////////sys_vars////////////////////////////////////////
+	/////////////////////////////Gripper
+	timer : TON;
+	movementTime : TIME := T#750MS; //Timevalue for Grippercurrent
+	//	zaehler : UINT := 0;
+	/////////////////////////////Encoder
+	//FF Data
+	encDataOldMotor1:UINT:=0;
+	encDataOldMotor2:UINT:=0;
+	encDataOldMotor3:UINT:=0;
+	//scaling value
+	scalEnc:LREAL:=0.00766990393;
+	//cordinate Transformation Velocity
+	v1:LREAL:=0;
+	v2:LREAL:=0;
+	v3:LREAL:=0;
+	velocityFromMotor1:LREAL:=0;
+	velocityFromMotor2:LREAL:=0;
+	velocityFromMotor3:LREAL:=0;
+	diff1: INT := 0;
+	diff2: INT := 0;
+	diff3: INT := 0;
+	/////////////////////////////Motor
+	////////////////////////////intern
+	fbGetCurTaskIdx  : GETCURTASKINDEX;
+    nCycleTime       : UDINT;
+	diffConst:LREAL:=1; //seconds, Task:cycletime initilised with 1 to avoid zerodevisions
+		state:		CoreDriveState	:=	CoreDriveState.init;
+
+	//Achsen Freischalten
+	enableMotors: BOOL	:=0;
+
+	//Umgerechnete Werte
+	vX:		LREAL:=0;
+	vY:		LREAL:=0;
+	vTheta:	LREAL:=0;
+
+	//Fahrrichtung Motor
+	velocityMotor1 :LREAL:=0;
+	velocityMotor2 :LREAL:=0;
+	velocityMotor3 :LREAL:=0;
+	
+	//Skalierung auf MaxGeschwindigkeit Skalierung hängt mit CoE Register 8020:07 8020:08 zusammen !!!
+	velocityMax:LREAL:=942.4777961;// Nenndrehzahl U/min CoE Register 8020:07 8020:08 fesgelegt Faktor 16 Wegen Getriebe 1:16
+	velocityMotorsTf:LREAL:=0;
+	
+	// Skalierung auf Ansteuersignale LREAL=>WORD   Skalierung hängt mit CoE Register 8020:07 8020:08 zusammen !!!
+	skalPos:LREAL:=34.7668668;//  MaxValue/MaxVelocity   [1/ mm/s]   32767/(942mm/s)   MaxVelocity=D*PI*n/(16*60) //16:1 Getriebeübersetzung  
+	skalNeg:LREAL:=34.76792783;//  MaxVelau/MaxVelocity   [1/ mm/s]   32768/(942mm/s)   MaxVelocity=(80mm*PI*3600 U/min)/(16*60sec/min)
+	
+	//Inputs: CartesianToMotors + Bumper
+	vXCartesianToMotors 	AT%I*:	LREAL:=0;
+	vYCartesianToMotors 	AT%I*:	LREAL:=0;
+	vThetaCartesianToMotors AT%I*:	LREAL:=0;
+	bumper	   				AT%I*:	BOOL:=0;
+	bumperStopReset 		AT%I*: 	BOOL:=0;
+	
+	//Outputs: Motor Values and Enable Signal
+	enableToMotor1 AT%Q*:BOOL:=FALSE;
+	enableToMotor2 AT%Q*:BOOL:=FALSE;
+	enableToMotor3 AT%Q*:BOOL:=FALSE;
+	
+	velocityToMotor1 AT%Q*:INT:=0;
+	velocityToMotor2 AT%Q*:INT:=0;
+	velocityToMotor3 AT%Q*:INT:=0;
+	
+	counter: ULINT;
+	Test: LREAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[MotorDrives();
+Gripper();
+Encoders();]]></ST>
+    </Implementation>
+    <Method Name="Encoders" Id="{35ae48ce-0cf6-404c-b54d-c4e37c96fedd}">
+      <Declaration><![CDATA[METHOD Encoders : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE EncoderState OF
+	/////////////////////init /////////////////////////
+	EncoderState.init:
+	encDataOldMotor1 := encDataFromMotor1;
+	encDataOldMotor2 := encDataFromMotor2;
+	encDataOldMotor3 := encDataFromMotor3;
+	EncoderState := EncoderState.operational;
+	////////////operate //////////////////////////////
+	EncoderState.operational:
+	// Encoder Wegberechnung und Differenzierung für Geschwindigkeit
+	diff1:=UINT_TO_INT(encDataFromMotor1) - UINT_TO_INT(encDataOldMotor1);
+	IF diff1 >= 32767 OR diff1 <= -32767 THEN
+		diff1 := 0;
+	END_IF
+	diff2:=UINT_TO_INT(encDataFromMotor2) - UINT_TO_INT(encDataOldMotor2);
+	IF diff2 >= 32767 OR diff2 <= -32767 THEN
+		diff2 := 0;
+	END_IF
+	diff3:=UINT_TO_INT(encDataFromMotor3) - UINT_TO_INT(encDataOldMotor3);
+	IF diff3 >= 32767 OR diff3 <= -32767 THEN
+		diff3 := 0;
+	END_IF
+	
+	velocityFromMotor1:=diff1/diffConst*scalEnc;
+	velocityFromMotor2:=diff2/diffConst*scalEnc;
+	velocityFromMotor3:=diff3/diffConst*scalEnc;
+	
+	// Koordinatentransformation Geschwindigkeit
+	v1:=-velocityFromMotor1;
+	v2:=-velocityFromMotor2;
+	v3:=-velocityFromMotor3;
+	
+	vXCartesianFromMotors:=(v3 - v1) / (2.0 * COS(30.0*PI/180));  //in mm / s
+	vYCartesianFromMotors:=(v1 - 2.0 * v2 + v3) / 3.0;            //in mm / s
+	vThetaCartesianFromMotors:=(v1 + v2 + v3) / (3.0 * 135.0);    //in rad / s
+	
+	// Alte Encoderdaten speichern
+	encDataOldMotor1:=encDataFromMotor1;
+	encDataOldMotor2:=encDataFromMotor2;
+	encDataOldMotor3:=encDataFromMotor3;
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Gripper" Id="{9c02fdbd-5bc5-40da-a11d-b1ae50a7856a}">
+      <Declaration><![CDATA[METHOD Gripper : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE GripperState OF
+///////////////////////////////////////////////////////////////
+ CoreGripperControlState.Init: //Reference opening-drive 
+ 	GripperState := CoreGripperControlState.opening;
+			timer(in := 0, pt:= movementTime); // starts Timer
+///////////////////////////////////////////////////////////////		
+	CoreGripperControlState.Opening:
+		driveEnable:=1;
+		driveVelocity:=32767;
+		timer(IN:=1);
+		
+		IF timer.Q THEN GripperState := CoreGripperControlState.Open;
+		END_IF
+
+// Comment out for simpified use.
+//		IF  closeGripperCommand THEN //negate Command and starts opening Drive
+//			state := CoreGripperControlState.Closing;
+//			timer(in := 0, pt:= movementTime);
+//		END_IF
+///////////////////////////////////////////////////////////////		
+	CoreGripperControlState.Closing:
+		driveEnable:=1;
+		driveVelocity:=-32767;
+		timer(IN:=1);
+		
+		IF timer.Q THEN GripperState := CoreGripperControlState.Closed;
+		END_IF
+		
+//		IF  not closeGripperCommand THEN
+//			state := CoreGripperControlState.Opening;
+//			timer(in := 0, pt:= movementTime);
+//		END_IF
+		
+///////////////////////////////////////////////////////////////	
+	CoreGripperControlState.Open:	
+		driveEnable:=0;
+		driveVelocity:=0;
+
+		IF  closeGripperCommand THEN
+			GripperState := CoreGripperControlState.Closing;
+			timer(in := 0, pt:= movementTime);
+		END_IF
+///////////////////////////////////////////////////////////////		
+	CoreGripperControlState.Closed:	
+		driveEnable:=0;
+		driveVelocity:=0;
+		
+		IF NOT closeGripperCommand THEN
+			GripperState := CoreGripperControlState.Opening;
+			timer(in := 0, pt:= movementTime);
+		END_IF
+		
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MotorDrives" Id="{d25d6fc2-da90-4b31-bc3c-5ce545c2d4e7}">
+      <Declaration><![CDATA[METHOD MotorDrives : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE MotorsState OF
+	MotorsState.init:
+	WHILE nCycleTime <=0 DO
+		fbGetCurTaskIdx();
+		nCycleTime := _TaskInfo[fbGetCurTaskIdx.index].CycleTime; //multiplier of 100ns
+		diffConst := UDINT_TO_LREAL(nCycleTime) * 0.0000001; //
+	END_WHILE
+	MotorsState:=CoreDriveState.operational;
+	MotorsState.operational:
+	;
+		MotorsState.error:
+	;
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="MotorGeneral">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="MotorGeneral.Encoders">
+      <LineId Id="3" Count="39" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="MotorGeneral.Gripper">
+      <LineId Id="3" Count="51" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="MotorGeneral.MotorDrives">
+      <LineId Id="3" Count="11" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

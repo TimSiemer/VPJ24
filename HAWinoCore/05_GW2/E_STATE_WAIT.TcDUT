@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <DUT Name="E_STATE_WAIT" Id="{d7974f11-f6a5-41b1-bfd1-5828ab419ca4}">
+    <Declaration><![CDATA[
+TYPE E_STATE_WAIT :
+(
+	Tasche := 0,
+	RFID := 1
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

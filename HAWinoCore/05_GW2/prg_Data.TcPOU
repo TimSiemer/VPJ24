@@ -1,0 +1,388 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="prg_Data" Id="{168dd00b-5a85-43f3-a0c6-f8cd694d61d3}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM prg_Data
+
+VAR
+	
+	x_Init: BOOL:=TRUE;
+	
+	// Laufindex
+	x_Reset_Stations:BOOL:=FALSE;
+	x_Learn_Stations:BOOL:=FALSE;
+	x_Robo_Free:BOOL:=TRUE;
+	fb_Einlernen:fb_learn_Stations();
+	//MQTT Variablen
+	
+	x_Ausfahrt1: BOOL;
+	x_Ausfahrt2: BOOL;
+
+	// Variablen 
+	arr_MQTTroboPose: ARRAY [1..3] OF STATUS_IST_POS;
+	arr_CAMroboPose: ARRAY [1..3] OF RobotPose;
+	arr_roboPose: ARRAY [1..3] OF RobotPose;
+	istpose: RobotPose;
+	fb_TMR_CNT_1 : TON;
+	x_ResetTmrCnt_1 : BOOL;
+	fb_Trig_1: R_TRIG;
+	fb_TMR_CNT_2 : TON;
+	x_ResetTmrCnt_2 : BOOL;
+	fb_Trig_2: R_TRIG;
+	i_LastCheckSum_1: INT;
+	x_RoboOnline_1: BOOL;
+	i_LastCheckSum_2: INT;
+	x_RoboOnline_2: BOOL;
+	i_LastCheckSum_3: INT;
+	x_RoboOnline_3: BOOL;
+	i_LastCheckSum_4: INT;
+	x_RoboOnline_4: BOOL;
+	arr_x_RoboOnline: ARRAY [1..3] OF BOOL;
+	arr_otherStat: ARRAY [1..3] OF INT;
+	arr_otherTarget: ARRAY [1..3] OF INT;
+	
+	x_TargetFrei: BOOL;
+	
+	lr_d1: LREAL;
+	lr_d2: LREAL;
+	lr_d3: LREAL;
+	
+	fb_d1: fb_distance;
+	fb_d2: fb_distance;
+	fb_d3: fb_distance;
+	
+	x_triggered :BOOL;
+	x_stopmoving : BOOL;
+	
+	fb_TMR_7: TON;
+	
+	//MQTT Mapping
+	
+	i_newJobID: INT;
+	arr_i_Drivingjob: ARRAY [1..2] OF INT;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF x_Init THEN // Einlesen der Initialwerte
+			IF Var_HAWIno.Stations_Global[1].EntryPOSX=0 THEN
+				x_Reset_Stations:=TRUE;
+			END_IF
+			gv.statusPathAllocationRobo.x_LeftPathAllocated:=FALSE;
+			gv.statusPathAllocationRobo.x_RightPathAllocated:=FALSE;
+			x_Init:=FALSE;
+END_IF
+
+//Logik zum Einlesen der Stationen bzw. um das einlerenen zu starten
+IF x_Reset_Stations THEN
+	x_Reset_Stations:=FALSE;
+	fun_CreateStations();
+END_IF
+
+IF x_Learn_Stations THEN
+	fb_Einlernen();
+	x_Robo_Free:=FALSE;
+	IF fb_Einlernen.Done = TRUE THEN
+		x_Learn_Stations:=FALSE;
+	END_IF
+ELSE
+fb_einlernen.theta:=0;	
+END_IF
+	
+// Abprüfen ob die Ausfahrt frei sind 
+IF Var_HAWIno.Robot_Number = 1 THEN
+	IF gv.statusPathAllocationRobo_2.x_LeftPathAllocated OR gv.statusPathAllocationRobo_3.x_LeftPathAllocated OR gv.statusPathAllocationRobo_4.x_LeftPathAllocated THEN
+		x_Ausfahrt1:=TRUE;
+	ELSE
+		x_Ausfahrt1:=FALSE;
+	END_IF
+	IF gv.statusPathAllocationRobo_2.x_RightPathAllocated OR gv.statusPathAllocationRobo_3.x_RightPathAllocated OR gv.statusPathAllocationRobo_4.x_RightPathAllocated THEN
+		x_Ausfahrt2:=TRUE;
+	ELSE
+		x_Ausfahrt2:=FALSE;
+	END_IF
+ELSIF Var_HAWIno.Robot_Number = 2 THEN
+	IF gv.statusPathAllocationRobo_1.x_LeftPathAllocated OR gv.statusPathAllocationRobo_3.x_LeftPathAllocated OR gv.statusPathAllocationRobo_4.x_LeftPathAllocated THEN
+		x_Ausfahrt1:=TRUE;
+	ELSE
+		x_Ausfahrt1:=FALSE;
+	END_IF
+	IF gv.statusPathAllocationRobo_1.x_RightPathAllocated OR gv.statusPathAllocationRobo_3.x_RightPathAllocated OR gv.statusPathAllocationRobo_4.x_RightPathAllocated THEN
+		x_Ausfahrt2:=TRUE;
+	ELSE
+		x_Ausfahrt2:=FALSE;
+	END_IF
+ELSIF Var_HAWIno.Robot_Number = 3 THEN	
+	IF gv.statusPathAllocationRobo_2.x_LeftPathAllocated OR gv.statusPathAllocationRobo_1.x_LeftPathAllocated OR gv.statusPathAllocationRobo_4.x_LeftPathAllocated THEN
+		x_Ausfahrt1:=TRUE;
+	ELSE
+		x_Ausfahrt1:=FALSE;
+	END_IF
+	IF gv.statusPathAllocationRobo_2.x_RightPathAllocated OR gv.statusPathAllocationRobo_1.x_RightPathAllocated OR gv.statusPathAllocationRobo_4.x_RightPathAllocated THEN
+		x_Ausfahrt2:=TRUE;
+	ELSE
+		x_Ausfahrt2:=FALSE;
+	END_IF
+ELSIF Var_HAWIno.Robot_Number = 4 THEN
+	IF gv.statusPathAllocationRobo_2.x_LeftPathAllocated OR gv.statusPathAllocationRobo_3.x_LeftPathAllocated OR gv.statusPathAllocationRobo_1.x_LeftPathAllocated THEN
+		x_Ausfahrt1:=TRUE;
+	ELSE
+		x_Ausfahrt1:=FALSE;
+	END_IF
+	IF gv.statusPathAllocationRobo_2.x_RightPathAllocated OR gv.statusPathAllocationRobo_3.x_RightPathAllocated OR gv.statusPathAllocationRobo_1.x_RightPathAllocated THEN
+		x_Ausfahrt2:=TRUE;
+	ELSE
+		x_Ausfahrt2:=FALSE;
+	END_IF
+END_IF
+	
+	
+// Aufbereitung der Position für die KV
+istpose:=main.getIstPose();
+GV.RobotPose.x := istpose.x;
+GV.RobotPose.y := istpose.y;
+GV.RobotPose.theta := istpose.theta;
+
+fb_TMR_CNT_1(IN:= x_ResetTmrCnt_1, PT := T#500MS);
+fb_Trig_1(CLK := fb_TMR_CNT_1.Q);
+x_ResetTmrCnt_1 := TRUE;
+IF fb_Trig_1.Q THEN 
+	IF GV.robotPose.i_OnlineCheck < 1E4 THEN
+		GV.robotPose.i_OnlineCheck := GV.robotPose.i_OnlineCheck + 1;
+	ELSE
+		GV.robotPose.i_OnlineCheck := 0;
+	END_IF
+	
+	x_ResetTmrCnt_1 := FALSE;
+END_IF
+
+fb_TMR_CNT_2(IN:= x_ResetTmrCnt_2, PT := T#3S);
+fb_Trig_2(CLK := fb_TMR_CNT_2.Q);
+x_ResetTmrCnt_2 := TRUE;
+IF fb_Trig_2.Q THEN 
+	
+	IF GV.robotPose_1.i_OnlineCheck <> i_LastCheckSum_1 THEN
+		i_LastCheckSum_1 := GV.robotPose_1.i_OnlineCheck;
+		x_RoboOnline_1 := TRUE;
+	ELSE
+		x_RoboOnline_1 := FALSE;
+	END_IF
+	
+	IF GV.robotPose_2.i_OnlineCheck <> i_LastCheckSum_2 THEN
+		i_LastCheckSum_2 := GV.robotPose_2.i_OnlineCheck;
+		x_RoboOnline_2 := TRUE;
+	ELSE
+		x_RoboOnline_2 := FALSE;
+	END_IF
+	
+	IF GV.robotPose_3.i_OnlineCheck <> i_LastCheckSum_3 THEN
+		i_LastCheckSum_3 := GV.robotPose_3.i_OnlineCheck;
+		x_RoboOnline_3 := TRUE;
+	ELSE
+		x_RoboOnline_3 := FALSE;
+	END_IF
+	
+	IF GV.robotPose_4.i_OnlineCheck <> i_LastCheckSum_4 THEN
+		i_LastCheckSum_4 := GV.robotPose_4.i_OnlineCheck;
+		x_RoboOnline_4 := TRUE;
+	ELSE
+		x_RoboOnline_4 := FALSE;
+	END_IF
+	
+	x_ResetTmrCnt_2 := FALSE;
+END_IF
+
+	
+// Mapping der Robots auf das Array
+IF Var_HAWIno.Robot_Number = 1 THEN
+	arr_x_RoboOnline[1]:=x_RoboOnline_2;
+	arr_x_RoboOnline[2]:=x_RoboOnline_3;
+	arr_x_RoboOnline[3]:=x_RoboOnline_4;
+ELSIF Var_HAWIno.Robot_Number = 2 THEN
+	arr_x_RoboOnline[1]:=x_RoboOnline_1;
+	arr_x_RoboOnline[2]:=x_RoboOnline_3;
+	arr_x_RoboOnline[3]:=x_RoboOnline_4;
+ELSIF Var_HAWIno.Robot_Number = 3 THEN
+	arr_x_RoboOnline[1]:=x_RoboOnline_1;
+	arr_x_RoboOnline[2]:=x_RoboOnline_2;
+	arr_x_RoboOnline[3]:=x_RoboOnline_4;
+	ELSIF Var_HAWIno.Robot_Number = 4 THEN
+	arr_x_RoboOnline[1]:=x_RoboOnline_1;
+	arr_x_RoboOnline[2]:=x_RoboOnline_2;
+	arr_x_RoboOnline[3]:=x_RoboOnline_3;
+END_IF
+IF Var_HAWIno.Robot_Number = 1 THEN
+	arr_MQTTroboPose[1]:=gv.robotPose_2;
+	arr_MQTTroboPose[2]:=gv.robotPose_3;
+	arr_MQTTroboPose[3]:=gv.robotPose_4;
+ELSIF Var_HAWIno.Robot_Number = 2 THEN
+	arr_MQTTroboPose[1]:=gv.robotPose_1;
+	arr_MQTTroboPose[2]:=gv.robotPose_3;
+	arr_MQTTroboPose[3]:=gv.robotPose_4;
+ELSIF Var_HAWIno.Robot_Number = 3 THEN
+	arr_MQTTroboPose[1]:=gv.robotPose_1;
+	arr_MQTTroboPose[2]:=gv.robotPose_2;
+	arr_MQTTroboPose[3]:=gv.robotPose_4;
+	ELSIF Var_HAWIno.Robot_Number = 4 THEN
+	arr_MQTTroboPose[1]:=gv.robotPose_1;
+	arr_MQTTroboPose[2]:=gv.robotPose_2;
+	arr_MQTTroboPose[3]:=gv.robotPose_3;
+END_IF
+IF Var_HAWIno.Robot_Number = 1 THEN
+	arr_CAMroboPose[1]:=camera.cameraData.RobotPosition[2];
+	arr_CAMroboPose[2]:=camera.cameraData.RobotPosition[3];
+	arr_CAMroboPose[3]:=camera.cameraData.RobotPosition[4];
+ELSIF Var_HAWIno.Robot_Number = 2 THEN
+	arr_CAMroboPose[1]:=camera.cameraData.RobotPosition[1];
+	arr_CAMroboPose[2]:=camera.cameraData.RobotPosition[3];
+	arr_CAMroboPose[3]:=camera.cameraData.RobotPosition[4];
+ELSIF Var_HAWIno.Robot_Number = 3 THEN
+	arr_CAMroboPose[1]:=camera.cameraData.RobotPosition[1];
+	arr_CAMroboPose[2]:=camera.cameraData.RobotPosition[2];
+	arr_CAMroboPose[3]:=camera.cameraData.RobotPosition[4];
+	ELSIF Var_HAWIno.Robot_Number = 4 THEN
+	arr_CAMroboPose[1]:=camera.cameraData.RobotPosition[1];
+	arr_CAMroboPose[2]:=camera.cameraData.RobotPosition[2];
+	arr_CAMroboPose[3]:=camera.cameraData.RobotPosition[3];
+END_IF
+	
+
+IF arr_x_RoboOnline[1] AND arr_CAMroboPose[1].x=0 THEN
+	arr_roboPose[1].x:=arr_MQTTroboPose[1].x;
+	arr_roboPose[1].y:=arr_MQTTroboPose[1].y;
+	arr_roboPose[1].theta:=arr_MQTTroboPose[1].theta;
+ELSE
+	arr_roboPose[1]:=arr_CAMroboPose[1];
+END_IF
+
+IF arr_x_RoboOnline[2] AND arr_CAMroboPose[2].x=0 THEN
+	arr_roboPose[2].x:=arr_MQTTroboPose[2].x;
+	arr_roboPose[2].y:=arr_MQTTroboPose[2].y;
+	arr_roboPose[2].theta:=arr_MQTTroboPose[2].theta;
+ELSE
+	arr_roboPose[2]:=arr_CAMroboPose[2];
+END_IF
+
+IF arr_x_RoboOnline[3] AND arr_CAMroboPose[3].x=0 THEN
+	arr_roboPose[3].x:=arr_MQTTroboPose[3].x;
+	arr_roboPose[3].y:=arr_MQTTroboPose[3].y;
+	arr_roboPose[3].theta:=arr_MQTTroboPose[3].theta;
+ELSE
+	arr_roboPose[3]:=arr_CAMroboPose[3];
+END_IF
+
+// Mapping der MQTT Ladestation variabeln auf GW3
+IF prg_OperationMode.i_CurrentStation=10 THEN
+	main.setStationIstConnected(gv.statusPowerManagementStat_2.IsConnected);
+ELSIF prg_OperationMode.i_CurrentStation=9 THEN
+	main.setStationIstConnected(gv.statusPowerManagementStat_1.IsConnected);
+ELSE
+	main.setStationIstConnected(FALSE);
+END_IF
+
+//Stationen der anderen Roboter für Kollisionsvermeidung
+
+IF Var_HAWIno.Robot_Number = 1 THEN
+	arr_otherStat[1]:=gv.robotPose_2.i_CurrentStation;
+	arr_otherStat[2]:=gv.robotPose_3.i_CurrentStation;
+	arr_otherStat[3]:=gv.robotPose_4.i_CurrentStation;
+ELSIF Var_HAWIno.Robot_Number = 2 THEN
+	arr_otherStat[1]:=gv.robotPose_1.i_CurrentStation;
+	arr_otherStat[2]:=gv.robotPose_3.i_CurrentStation;
+	arr_otherStat[3]:=gv.robotPose_4.i_CurrentStation;
+ELSIF Var_HAWIno.Robot_Number = 3 THEN
+	arr_otherStat[1]:=gv.robotPose_1.i_CurrentStation;
+	arr_otherStat[2]:=gv.robotPose_2.i_CurrentStation;
+	arr_otherStat[3]:=gv.robotPose_4.i_CurrentStation;
+	ELSIF Var_HAWIno.Robot_Number = 4 THEN
+	arr_otherStat[1]:=gv.robotPose_1.i_CurrentStation;
+	arr_otherStat[2]:=gv.robotPose_2.i_CurrentStation;
+	arr_otherStat[3]:=gv.robotPose_3.i_CurrentStation;
+END_IF
+
+
+// Berechnung der Distanz zwischen den Robotern
+
+fb_d1(POS1_X:=istpose.x, POS1_Y:=istpose.y, POS2_X:=arr_roboPose[1].x, POS2_Y:=arr_roboPose[1].y);
+fb_d2(POS1_X:=istpose.x, POS1_Y:=istpose.y, POS2_X:=arr_roboPose[2].x, POS2_Y:=arr_roboPose[2].y);
+fb_d3(POS1_X:=istpose.x, POS1_Y:=istpose.y, POS2_X:=arr_roboPose[3].x, POS2_Y:=arr_roboPose[3].y);
+
+lr_d1:=fb_d1.d/1000;
+lr_d2:=fb_d2.d/1000;
+lr_d3:=fb_d3.d/1000;
+
+IF lr_d1 < 0.5 OR lr_d2 < 0.5 OR lr_d3 < 0.5 THEN
+				IF Var_HAWIno.Robot_Number=1 THEN
+					fb_TMR_7(IN:=TRUE, PT:=T#3S);
+				ELSIF Var_HAWIno.Robot_Number=2 THEN
+					fb_TMR_7(IN:=TRUE, PT:=T#6S);
+				ELSIF Var_HAWIno.Robot_Number=3 THEN
+					fb_TMR_7(IN:=TRUE, PT:=T#9S);
+				ELSIF Var_HAWIno.Robot_Number=4 THEN
+					fb_TMR_7(IN:=TRUE, PT:=T#12S);
+				END_IF
+	x_triggered:=TRUE;
+ELSE
+	fb_TMR_7(IN:=FALSE);
+	x_triggered:=FALSE;
+END_IF
+
+
+IF NOT fb_TMR_7.Q AND x_triggered THEN
+	x_stopmoving:=TRUE;
+ELSE
+	x_stopmoving:=FALSE;
+END_IF
+
+// Erstellen "virtueller" Fahraufträge bei gleichem Ziel 
+
+IF Var_HAWIno.Robot_Number = 1 THEN
+	gv.statusFleetMgnt:=gv.statusFleetMgntRaw;
+ELSIF Var_HAWIno.Robot_Number = 2 THEN
+	IF gv.robotPose_1.i_TargetStation=gv.statusFleetMgntRAW.DrivingJob[1] AND gv.robotPose_1.i_TargetStation<>prg_OperationMode.i_CurrentStation AND x_RoboOnline_1 AND gv.statusFleetMgntRaw.DrivingJob[1]<>0 THEN
+		 gv.statusFleetMgnt.JobId:=9999;
+		 gv.statusFleetMgnt.DrivingJob[1]:=0;
+		 gv.statusFleetMgnt.DrivingJob[2]:=0;
+		 gv.statusFleetMgnt.Logged:=gv.statusFleetMgntRaw.Logged;
+		 gv.statusFleetMgnt.Wait:=gv.statusFleetMgntRaw.Wait;
+	ELSE
+		gv.statusFleetMgnt:=gv.statusFleetMgntRaw;
+	END_IF
+ELSIF Var_HAWIno.Robot_Number = 3 THEN
+	IF ((gv.robotPose_1.i_TargetStation=gv.statusFleetMgntRAW.DrivingJob[1] AND gv.robotPose_1.i_TargetStation<>prg_OperationMode.i_CurrentStation AND x_RoboOnline_1) OR (gv.robotPose_2.i_TargetStation=gv.statusFleetMgntRAW.DrivingJob[1]AND gv.robotPose_2.i_TargetStation<>prg_OperationMode.i_CurrentStation AND x_RoboOnline_2)) AND gv.statusFleetMgntRaw.DrivingJob[1]<>0 THEN
+		 gv.statusFleetMgnt.JobId:=9999;
+		 gv.statusFleetMgnt.DrivingJob[1]:=0;
+		 gv.statusFleetMgnt.DrivingJob[2]:=0;
+		 gv.statusFleetMgnt.Logged:=gv.statusFleetMgntRaw.Logged;
+		 gv.statusFleetMgnt.Wait:=gv.statusFleetMgntRaw.Wait;
+	ELSE
+		gv.statusFleetMgnt:=gv.statusFleetMgntRaw;
+	END_IF
+ELSIF Var_HAWIno.Robot_Number = 4 THEN
+	IF ((gv.robotPose_1.i_TargetStation=gv.statusFleetMgntRAW.DrivingJob[1] AND gv.robotPose_1.i_TargetStation<>prg_OperationMode.i_CurrentStation AND x_RoboOnline_1) OR (gv.robotPose_2.i_TargetStation=gv.statusFleetMgntRAW.DrivingJob[1] AND gv.robotPose_2.i_TargetStation<>prg_OperationMode.i_CurrentStation AND x_RoboOnline_2) OR (gv.robotPose_3.i_TargetStation=gv.statusFleetMgntRAW.DrivingJob[1] AND gv.robotPose_3.i_TargetStation<>prg_OperationMode.i_CurrentStation AND x_RoboOnline_3))AND gv.statusFleetMgntRaw.DrivingJob[1]<>0 THEN
+		 gv.statusFleetMgnt.JobId:=9999;
+		 gv.statusFleetMgnt.DrivingJob[1]:=0;
+		 gv.statusFleetMgnt.DrivingJob[2]:=0;
+		 gv.statusFleetMgnt.Logged:=gv.statusFleetMgntRaw.Logged;
+		 gv.statusFleetMgnt.Wait:=gv.statusFleetMgntRaw.Wait;
+	ELSE
+		gv.statusFleetMgnt:=gv.statusFleetMgntRaw;
+	END_IF
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="prg_Data">
+      <LineId Id="3" Count="5" />
+      <LineId Id="392" Count="0" />
+      <LineId Id="9" Count="227" />
+      <LineId Id="262" Count="43" />
+      <LineId Id="385" Count="1" />
+      <LineId Id="306" Count="7" />
+      <LineId Id="387" Count="1" />
+      <LineId Id="314" Count="7" />
+      <LineId Id="389" Count="1" />
+      <LineId Id="322" Count="2" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="391" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

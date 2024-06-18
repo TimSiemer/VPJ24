@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="noCollisionCircle" Id="{fd3315d4-8785-4e5f-84e7-c4bd7cee1120}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION noCollisionCircle : LREAL
+VAR_INPUT
+	pos_2: ARRAY[0..1] OF LREAL;
+	pos_1: ARRAY[0..1] OF LREAL;
+	circle: ARRAY[0..2] OF LREAL;
+END_VAR
+VAR
+	a: LREAL;
+	b: LREAL;
+	discriminant: LREAL;
+	t1: LREAL;
+	t2: LREAL;
+	c: LREAL;
+	AB: LREAL;
+	y_tmp: LREAL;
+	y_idx_0: LREAL;
+	AB_idx_0: LREAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+(* Extrahiere die Koordinaten des Kreises *)
+(* 'noCollisionCircle:6' center = circle(1:2); *)
+(* 'noCollisionCircle:7' radius = circle(3); *)
+(* Überprüfe, ob die Linie von n1 nach n2 den Kreis schneidet *)
+(* Berechne den Vektor AB *)
+(* 'noCollisionCircle:12' AB = pos_2 - pos_1; *)
+(* Parametrische Gleichung der Linie: P = A + t * AB, 0 <= t <= 1 *)
+(* Substituiere die Kreisgleichung (x - center_x)^2 + (y - center_y)^2 = radius^2 *)
+(* Erhalte ein quadratisches Gleichungssystem in Bezug auf t *)
+(* Löse das Gleichungssystem, um t zu finden *)
+(* Wenn es eine reelle Lösung gibt, liegt ein Schnittpunkt vor *)
+(* Koeffizienten des quadratischen Gleichungssystems *)
+(* 'noCollisionCircle:28' a = sum(AB.^2); *)
+AB := pos_2[0] - pos_1[0];
+y_idx_0 := AB * AB;
+AB_idx_0 := AB;
+AB := pos_2[1] - pos_1[1];
+a := (AB * AB) + y_idx_0;
+(* 'noCollisionCircle:30' b = 2 * dot(AB, pos_1 - center); *)
+(* 'noCollisionCircle:32' c = sum((pos_1 - center).^2) - radius^2; *)
+y_tmp := pos_1[0] - circle[0];
+c := AB_idx_0 * y_tmp;
+y_idx_0 := y_tmp * y_tmp;
+y_tmp := pos_1[1] - circle[1];
+b := ((AB * y_tmp) + c) * 2.0;
+(* Diskriminante berechnen *)
+(* 'noCollisionCircle:37' discriminant = b^2 - 4*a*c; *)
+discriminant := (b * b) - ((((y_tmp * y_tmp) + y_idx_0) - 4.8400000000000007) * (4.0 * a));
+(* Wenn die Diskriminante negativ ist, gibt es keine Schnittpunkte *)
+(* 'noCollisionCircle:42' if discriminant < 0 *)
+
+IF discriminant < 0.0 THEN 
+    (* 'noCollisionCircle:44' nc = 1; *)
+    noCollisionCircle := 1.0;
+    (* Keine Kollision *)
+ELSE 
+    (* 'noCollisionCircle:46' else *)
+    (* Berechne die Lösungen des Gleichungssystems *)
+    (* 'noCollisionCircle:49' if a ~= 0 *)
+
+    IF a <> 0.0 THEN 
+        (* 'noCollisionCircle:50' t1 = (-b + sqrt(discriminant)) / (2 * a); *)
+        c := SQRT(discriminant);
+        t1 := (( -b) + c) / (2.0 * a);
+        (* 'noCollisionCircle:51' t2 = (-b - sqrt(discriminant)) / (2 * a); *)
+        t2 := (( -b) - c) / (2.0 * a);
+    ELSE 
+        (* 'noCollisionCircle:52' else *)
+        (* 'noCollisionCircle:53' t1 = 0; *)
+        t1 := 0.0;
+        (* 'noCollisionCircle:54' t2 = 0; *)
+        t2 := 0.0;
+    END_IF;
+
+    (* Wenn mindestens eine Lösung im Bereich [0, 1] liegt, gibt es eine Kollision *)
+    (* 'noCollisionCircle:60' if (t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1) *)
+
+    IF ((t1 >= 0.0) AND (t1 <= 1.0)) OR ((t2 >= 0.0) AND (t2 <= 1.0)) THEN 
+        (* 'noCollisionCircle:62' nc = 0; *)
+        noCollisionCircle := 0.0;
+        (* Kollision *)
+    ELSE 
+        (* 'noCollisionCircle:64' else *)
+        (* 'noCollisionCircle:66' nc = 1; *)
+        noCollisionCircle := 1.0;
+        (* Keine Kollision *)
+    END_IF;
+
+END_IF;
+
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="noCollisionCircle">
+      <LineId Id="3" Count="71" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <DUT Name="STATUS_ROBOT" Id="{807e3105-32a9-4b04-9ab3-71aad1adade5}">
+    <Declaration><![CDATA[ TYPE STATUS_ROBOT :
+STRUCT
+	Logging 		: BOOL;		// {"Logging": TRUE}, 		{"Logging": FALSE} 			(Anfrage zum anmelden)
+	JobId			: INT;		// {"JobId": 1}											( JobId als Empfangsbestätigung für GW1 *)
+	//Unlogged 		: BOOL;		// {"Unlogged": TRUE}, 		{"Unlogged": FALSE}			(Rückmeldung das Robo heruntergefahren wird)
+	TaskCompleted	: BOOL;		// {"TaskCompleted": TRUE}, {"TaskCompleted": FALSE} 	(Meldung Fahrauftrag abgeschlossen)
+	Gripper			: BOOL;     // {"Gripper": TRUE}(zu), 	{"Gripper": FALSE}(auf)		(Greifer offen, geschlossen)
+	Availability 	: BOOL;     // {"Availability": TRUE}, 	{"Availability": FALSE}		(Störung vom Robo erkannt)
+	DrivingMode		: INT;		// Bereit für Stromaufnahme 
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

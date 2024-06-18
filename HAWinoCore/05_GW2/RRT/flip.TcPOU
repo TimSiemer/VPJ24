@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="flip" Id="{3f9e5285-0952-482f-a313-ca7831179d66}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK flip
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR_IN_OUT
+	x: ARRAY[0..19] OF LREAL;
+END_VAR
+VAR
+	offset: DINT;
+	tmp: LREAL;
+	j: DINT;
+	k: DINT;
+	temp1: DINT;
+	temp2: DINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+
+FOR j := 0 TO 1 DO 
+    offset := j * 10;
+
+    FOR k := 0 TO 4 DO 
+        temp1 := offset + k;
+        tmp := x[temp1];
+        temp2 := (offset - k) + 9;
+        x[temp1] := x[temp2];
+        x[temp2] := tmp;
+    END_FOR;
+
+END_FOR;
+
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="flip">
+      <LineId Id="3" Count="15" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

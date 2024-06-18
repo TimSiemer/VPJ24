@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <DUT Name="E_STATE_CHARG" Id="{630066d8-78d9-4ce1-9299-7b337941d9c0}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_STATE_CHARG :
+(
+	Idle := 0,
+	Charging := 1,
+	ReDockingOut := 2,
+	ReDockingIn := 3
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

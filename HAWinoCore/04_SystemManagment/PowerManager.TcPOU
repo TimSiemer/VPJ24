@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="PowerManager" Id="{092fde2d-de21-405c-9f3e-b87d4da866d4}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PowerManager
+VAR
+	shutdownButton			AT%I*  : BOOL := FALSE;
+	batteryVoltageRaw  		AT%I*  : INT;
+	shutdownTrigger 		AT%Q*  : BOOL := FALSE;
+	batteryVoltage_V		AT%Q*  : REAL;
+	
+	supplyCurrentRaw		AT%I* : INT;
+	supplyCurrent_A			AT%Q* : REAL; 
+	
+	SOC AT%I* : REAL;
+	
+	requestShutdown 		AT%I* : BOOL;
+	
+	shutdown: NT_Shutdown;
+
+	scaleVoltage:	REAL := LREAL_TO_REAL(20/EXPT(2,16)); 		// (Spannungsbereich der Klemme)/(Wertebereich)
+	dummy:  REAL;
+	
+	stMqtt_HAWino_IN	AT%Q*	: ST_PwrMgmt_HAWino_In;			// Link MQTT-DatenStruct
+	
+	shut: INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF shutdownButton THEN
+	shutdown(DELAY:=1, START:=TRUE);
+END_IF
+
+batteryVoltage_V := (batteryVoltageRaw * scaleVoltage * 2.0);
+
+//batteryVoltage_V := batteryVoltageRaw;
+
+supplyCurrent_A :=  supplyCurrentRaw * 1000.0 / 270.0 / 32768 * 10;
+//supplyCurrent_A :=  supplyCurrentRaw;
+// TODO: Filter and CALIBRATE this!
+//shutdownTrigger := requestShutdown ;// OR batteryVoltage_V < 14.0;
+
+
+stMqtt_HAWino_IN.fActualBatteryVoltage := batteryVoltage_V;
+stMqtt_HAWino_IN.fActualBatteryCurrent := supplyCurrent_A;
+
+
+//stMqtt_HAWino_In.fActualBatteryVoltage := batteryVoltage_V;
+//stMqtt_HAWino_In.fActualBatteryCurrent := supplyCurrent_A]]></ST>
+    </Implementation>
+    <LineIds Name="PowerManager">
+      <LineId Id="3" Count="11" />
+      <LineId Id="20" Count="6" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

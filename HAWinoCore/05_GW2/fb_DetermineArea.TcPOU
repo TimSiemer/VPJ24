@@ -1,0 +1,142 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="fb_DetermineArea" Id="{8a5f6a1f-7104-418b-bb6c-ead93e6c37ae}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK fb_DetermineArea
+VAR_INPUT
+	Ilr_RoboPosX : LREAL;
+	Ilr_RoboPosY : LREAL;
+END_VAR
+VAR_OUTPUT
+	Oe_Area : E_AREA;
+END_VAR
+VAR
+	lr_RoboPosX : LREAL;
+	lr_RoboPosY : LREAL;
+	
+ 	r_BoxPositionXConstArea : REAL := 3.5;
+    r_BoxPositionYConstArea : REAL := 11.5;
+    r_BoxSizeXConstArea : REAL := 22;
+    r_BoxSizeYConstArea : REAL := 6;
+	
+	r_BoxPositionXParkArea_1 : REAL := 32.5;
+    r_BoxPositionYParkArea_1 : REAL := 1.2;
+	
+	r_BoxPositionXParkArea_2 : REAL := 25;
+    r_BoxPositionYParkArea_2 : REAL := 1.2;
+	
+	r_BoxPositionXParkArea_3 : REAL := 17.5;
+    r_BoxPositionYParkArea_3 : REAL := 1.2;
+	
+	r_BoxPositionXParkArea_4 : REAL := 10;
+    r_BoxPositionYParkArea_4 : REAL := 1.2;
+	
+    r_BoxSizeXParkArea : REAL := 3;
+    r_BoxSizeYParkArea : REAL := 3.5;
+	
+	r_BoxPositionXLoadArea : REAL := 28;
+    r_BoxPositionYLoadArea : REAL := 15;
+    r_BoxSizeXLoadArea : REAL := 7;
+    r_BoxSizeYLoadArea : REAL := 2.5;
+	
+	r_BoxPositionXOpenArea_1 : REAL := 2;
+	r_BoxPositionYOpenArea_1 : REAL := 3.5;
+	r_BoxSizeXOpenArea_1 : REAL := 1.5;
+    r_BoxSizeYOpenArea_1 : REAL := 14;
+
+	r_BoxPositionXOpenArea_2 : REAL := 3.5;
+	r_BoxPositionYOpenArea_2 : REAL := 3.5;
+	r_BoxSizeXOpenArea_2 : REAL := 22;
+    r_BoxSizeYOpenArea_2 : REAL := 8;
+	
+	r_BoxPositionXOpenArea_3 : REAL := 25.5;
+	r_BoxPositionYOpenArea_3 : REAL := 3.5;
+	r_BoxSizeXOpenArea_3 : REAL := 2.5;
+    r_BoxSizeYOpenArea_3 : REAL := 14;
+	
+	r_BoxPositionXOpenArea_4 : REAL := 28;
+	r_BoxPositionYOpenArea_4 : REAL := 3.5;
+	r_BoxSizeXOpenArea_4 : REAL := 7;
+    r_BoxSizeYOpenArea_4 : REAL := 11.5;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF Ilr_RoboPosX <> 0 OR Ilr_RoboPosY <> 0 THEN
+	lr_RoboPosX := Ilr_RoboPosX / 200.0;
+	lr_RoboPosY := Ilr_RoboPosY / 200.0;
+ELSE
+	lr_RoboPosX := 0;
+	lr_RoboPosY := 0;	
+END_IF
+
+IF 	(r_BoxPositionXConstArea < lr_RoboPosX AND lr_RoboPosX < r_BoxPositionXConstArea + r_BoxSizeXConstArea) AND
+   	(r_BoxPositionYConstArea < lr_RoboPosY AND lr_RoboPosY < r_BoxPositionYConstArea + r_BoxSizeYConstArea) THEN
+
+    // Robo in ConstrainedArea
+	Oe_Area := E_AREA.ConstrainedArea;
+
+ELSIF 	(r_BoxPositionXParkArea_1 < lr_RoboPosX AND lr_RoboPosX < r_BoxPositionXParkArea_1 + r_BoxSizeXParkArea) AND
+  		(r_BoxPositionYParkArea_1 < lr_RoboPosY AND lr_RoboPosY < r_BoxPositionYParkArea_1 + r_BoxSizeYParkArea) OR
+		(r_BoxPositionXParkArea_2 < lr_RoboPosX AND lr_RoboPosX < r_BoxPositionXParkArea_2 + r_BoxSizeXParkArea) AND
+  		(r_BoxPositionYParkArea_2 < lr_RoboPosY AND lr_RoboPosY < r_BoxPositionYParkArea_2 + r_BoxSizeYParkArea) OR
+		(r_BoxPositionXParkArea_3 < lr_RoboPosX AND lr_RoboPosX < r_BoxPositionXParkArea_3 + r_BoxSizeXParkArea) AND
+  		(r_BoxPositionYParkArea_3 < lr_RoboPosY AND lr_RoboPosY < r_BoxPositionYParkArea_3 + r_BoxSizeYParkArea) OR
+		(r_BoxPositionXParkArea_4 < lr_RoboPosX AND lr_RoboPosX < r_BoxPositionXParkArea_4 + r_BoxSizeXParkArea) AND
+  		(r_BoxPositionYParkArea_4 < lr_RoboPosY AND lr_RoboPosY < r_BoxPositionYParkArea_4 + r_BoxSizeYParkArea) THEN
+                                                               
+    // Robo in PrakingArea                                     
+	Oe_Area := E_AREA.PrakingArea;                             
+	                                                           
+ELSIF 	(r_BoxPositionXLoadArea < lr_RoboPosX AND lr_RoboPosX < r_BoxPositionXLoadArea + r_BoxSizeXLoadArea) AND
+  		(r_BoxPositionYLoadArea < lr_RoboPosY AND lr_RoboPosY < r_BoxPositionYLoadArea + r_BoxSizeYLoadArea) THEN
+                                                               
+    // Robo in LoadArea                                        
+	Oe_Area := E_AREA.LoadArea;                                
+                                                               
+ELSIF 	(r_BoxPositionXOpenArea_1 < lr_RoboPosX AND lr_RoboPosX < r_BoxPositionXOpenArea_1 + r_BoxSizeXOpenArea_1) AND
+  		(r_BoxPositionYOpenArea_1 < lr_RoboPosY AND lr_RoboPosY < r_BoxPositionYOpenArea_1 + r_BoxSizeYOpenArea_1) OR
+		(r_BoxPositionXOpenArea_2 < lr_RoboPosX AND lr_RoboPosX < r_BoxPositionXOpenArea_2 + r_BoxSizeXOpenArea_2) AND
+  		(r_BoxPositionYOpenArea_2 < lr_RoboPosY AND lr_RoboPosY < r_BoxPositionYOpenArea_2 + r_BoxSizeYOpenArea_2) OR
+		(r_BoxPositionXOpenArea_3 < lr_RoboPosX AND lr_RoboPosX < r_BoxPositionXOpenArea_3 + r_BoxSizeXOpenArea_3) AND
+  		(r_BoxPositionYOpenArea_3 < lr_RoboPosY AND lr_RoboPosY < r_BoxPositionYOpenArea_3 + r_BoxSizeYOpenArea_3) OR
+		(r_BoxPositionXOpenArea_4 < lr_RoboPosX AND lr_RoboPosX < r_BoxPositionXOpenArea_4 + r_BoxSizeXOpenArea_4) AND
+  		(r_BoxPositionYOpenArea_4 < lr_RoboPosY AND lr_RoboPosY < r_BoxPositionYOpenArea_4 + r_BoxSizeYOpenArea_4) THEN                                                           
+                                                               
+    // Robo in OpenArea                                        
+	Oe_Area := E_AREA.OpenArea;   
+ 
+ELSE
+	 // Robo außerhalb der Map                                     
+	Oe_Area := E_AREA.NotDef;                              	                                                           
+END_IF                                                         ]]></ST>
+    </Implementation>
+    <LineIds Name="fb_DetermineArea">
+      <LineId Id="125" Count="0" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="117" Count="0" />
+      <LineId Id="126" Count="0" />
+      <LineId Id="129" Count="0" />
+      <LineId Id="127" Count="1" />
+      <LineId Id="113" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="36" Count="2" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="39" Count="1" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="187" Count="5" />
+      <LineId Id="41" Count="1" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="84" Count="3" />
+      <LineId Id="99" Count="3" />
+      <LineId Id="107" Count="0" />
+      <LineId Id="122" Count="0" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="111" Count="0" />
+      <LineId Id="124" Count="0" />
+      <LineId Id="103" Count="2" />
+      <LineId Id="121" Count="0" />
+      <LineId Id="118" Count="2" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

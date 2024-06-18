@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="Camera" Id="{f47d8b4d-3b12-40ce-95f8-97ff406a7170}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM Camera
+VAR
+		cameraData : CameraConnectionUDP;
+		soc : SoC_Calc;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[cameraData();
+soc();
+Main.setIstPoseCamera(PoseArray := cameraData.robotPosition);]]></ST>
+    </Implementation>
+    <Method Name="getX" Id="{14032c57-2b4d-42cb-8fce-631bf67d0508}">
+      <Declaration><![CDATA[METHOD getX : LREAL
+VAR_INPUT
+	robot_number : int;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//return cameraData.robotposition[robot_number].x;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="Camera">
+      <LineId Id="3" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Camera.getX">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

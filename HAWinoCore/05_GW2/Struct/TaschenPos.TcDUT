@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <DUT Name="TaschenPos" Id="{f07d0e7f-7fe6-43c7-a12f-210d0dc64236}">
+    <Declaration><![CDATA[TYPE TaschenPos :
+STRUCT
+	DESTX : LREAL;
+	DESTY :	LREAL;
+	theta : LREAL;
+	Charger: BOOL;
+	RFID: BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

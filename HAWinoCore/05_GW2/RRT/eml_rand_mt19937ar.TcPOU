@@ -1,0 +1,179 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="eml_rand_mt19937ar" Id="{e3da7466-c942-47ed-9f46-af348029ea19}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK eml_rand_mt19937ar
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+	b_r: LREAL;
+END_VAR
+VAR_IN_OUT
+	state: ARRAY[0..624] OF UDINT;
+END_VAR
+VAR
+	u: ARRAY[0..1] OF UDINT;
+	mti: UDINT;
+	y: UDINT;
+	kk: DINT;
+	k: DINT;
+	b_isvalid: BOOL;
+	exitg1: DINT;
+	exitg2: DINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+(* <LEGAL>========================= COPYRIGHT NOTICE ============================ *)
+(* <LEGAL> This is a uniform (0,1) pseudorandom number generator based on:        *)
+(* <LEGAL>                                                                        *)
+(* <LEGAL> A C-program for MT19937, with initialization improved 2002/1/26.       *)
+(* <LEGAL> Coded by Takuji Nishimura and Makoto Matsumoto.                        *)
+(* <LEGAL>                                                                        *)
+(* <LEGAL> Copyright (C) 1997 - 2002, Makoto Matsumoto and Takuji Nishimura,      *)
+(* <LEGAL> All rights reserved.                                                   *)
+(* <LEGAL>                                                                        *)
+(* <LEGAL> Redistribution and use in source and binary forms, with or without     *)
+(* <LEGAL> modification, are permitted provided that the following conditions     *)
+(* <LEGAL> are met:                                                               *)
+(* <LEGAL>                                                                        *)
+(* <LEGAL>   1. Redistributions of source code must retain the above copyright    *)
+(* <LEGAL>      notice, this list of conditions and the following disclaimer.     *)
+(* <LEGAL>                                                                        *)
+(* <LEGAL>   2. Redistributions in binary form must reproduce the above copyright *)
+(* <LEGAL>      notice, this list of conditions and the following disclaimer      *)
+(* <LEGAL>      in the documentation and/or other materials provided with the     *)
+(* <LEGAL>      distribution.                                                     *)
+(* <LEGAL>                                                                        *)
+(* <LEGAL>   3. The names of its contributors may not be used to endorse or       *)
+(* <LEGAL>      promote products derived from this software without specific      *)
+(* <LEGAL>      prior written permission.                                         *)
+(* <LEGAL>                                                                        *)
+(* <LEGAL> THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS    *)
+(* <LEGAL> "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT      *)
+(* <LEGAL> LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR  *)
+(* <LEGAL> A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT  *)
+(* <LEGAL> OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,  *)
+(* <LEGAL> SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT       *)
+(* <LEGAL> LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,  *)
+(* <LEGAL> DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY  *)
+(* <LEGAL> THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT    *)
+(* <LEGAL> (INCLUDING  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE *)
+(* <LEGAL> OF THIS  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  *)
+(* <LEGAL>                                                                        *)
+(* <LEGAL>=============================   END   ================================= *)
+REPEAT 
+    exitg1 := 0;
+
+    FOR k := 0 TO 1 DO 
+        mti := state[624] + 1;
+
+        IF (state[624] + 1) >= 625 THEN 
+
+            FOR kk := 0 TO 226 DO 
+                mti := DWORD_TO_UDINT((UDINT_TO_DWORD(state[kk + 1]) AND 2147483647) OR (UDINT_TO_DWORD(state[kk]) AND 2147483648));
+
+                IF DWORD_TO_UDINT(UDINT_TO_DWORD(mti) AND 1) = 0 THEN 
+                    mti := DWORD_TO_UDINT(SHR(UDINT_TO_DWORD(mti), 1));
+                ELSE 
+                    mti := DWORD_TO_UDINT((SHR(UDINT_TO_DWORD(mti), 1)) XOR 2567483615);
+                END_IF;
+
+                state[kk] := DWORD_TO_UDINT(UDINT_TO_DWORD(state[kk + 397]) XOR UDINT_TO_DWORD(mti));
+            END_FOR;
+
+
+            FOR kk := 0 TO 395 DO 
+                mti := DWORD_TO_UDINT((UDINT_TO_DWORD(state[kk + 227]) AND 2147483648) OR (UDINT_TO_DWORD(state[kk + 228]) AND 2147483647));
+
+                IF DWORD_TO_UDINT(UDINT_TO_DWORD(mti) AND 1) = 0 THEN 
+                    mti := DWORD_TO_UDINT(SHR(UDINT_TO_DWORD(mti), 1));
+                ELSE 
+                    mti := DWORD_TO_UDINT((SHR(UDINT_TO_DWORD(mti), 1)) XOR 2567483615);
+                END_IF;
+
+                state[kk + 227] := DWORD_TO_UDINT(UDINT_TO_DWORD(state[kk]) XOR UDINT_TO_DWORD(mti));
+            END_FOR;
+
+            mti := DWORD_TO_UDINT((UDINT_TO_DWORD(state[623]) AND 2147483648) OR (UDINT_TO_DWORD(state[0]) AND 2147483647));
+
+            IF DWORD_TO_UDINT(UDINT_TO_DWORD(mti) AND 1) = 0 THEN 
+                mti := DWORD_TO_UDINT(SHR(UDINT_TO_DWORD(mti), 1));
+            ELSE 
+                mti := DWORD_TO_UDINT((SHR(UDINT_TO_DWORD(mti), 1)) XOR 2567483615);
+            END_IF;
+
+            state[623] := DWORD_TO_UDINT(UDINT_TO_DWORD(state[396]) XOR UDINT_TO_DWORD(mti));
+            mti := 1;
+        END_IF;
+
+        y := state[UDINT_TO_DINT(mti) - 1];
+        state[624] := mti;
+        y := DWORD_TO_UDINT((SHR(UDINT_TO_DWORD(y), 11)) XOR UDINT_TO_DWORD(y));
+        y := DWORD_TO_UDINT(((SHL(UDINT_TO_DWORD(y), 7)) AND 2636928640) XOR UDINT_TO_DWORD(y));
+        y := DWORD_TO_UDINT(((SHL(UDINT_TO_DWORD(y), 15)) AND 4022730752) XOR UDINT_TO_DWORD(y));
+        u[k] := DWORD_TO_UDINT((SHR(UDINT_TO_DWORD(y), 18)) XOR UDINT_TO_DWORD(y));
+    END_FOR;
+
+    b_r := ((UDINT_TO_LREAL(DWORD_TO_UDINT(SHR(UDINT_TO_DWORD(u[0]), 5))) * 6.7108864E+7) + UDINT_TO_LREAL(DWORD_TO_UDINT(SHR(UDINT_TO_DWORD(u[1]), 6)))) * 1.1102230246251565E-16;
+
+    IF b_r = 0.0 THEN 
+
+        IF state[624] >= 1 THEN 
+
+            IF state[624] < 625 THEN 
+                b_isvalid := FALSE;
+                k := 1;
+                REPEAT 
+                    exitg2 := 0;
+
+                    IF k < 625 THEN 
+
+                        IF state[k - 1] = 0 THEN 
+                            k := k + 1;
+                        ELSE 
+                            b_isvalid := TRUE;
+                            exitg2 := 1;
+                        END_IF;
+
+                    ELSE 
+                        exitg2 := 1;
+                    END_IF;
+
+                UNTIL NOT(exitg2 = 0)
+                END_REPEAT;
+            ELSE 
+                b_isvalid := FALSE;
+            END_IF;
+
+        ELSE 
+            b_isvalid := FALSE;
+        END_IF;
+
+
+        IF  NOT b_isvalid THEN 
+            mti := 5489;
+            state[0] := 5489;
+
+            FOR k := 0 TO 622 DO 
+                mti := ((DWORD_TO_UDINT((SHR(UDINT_TO_DWORD(mti), 30)) XOR UDINT_TO_DWORD(mti)) * 1812433253) + DINT_TO_UDINT(k)) + 1;
+                state[k + 1] := mti;
+            END_FOR;
+
+            state[624] := 624;
+        END_IF;
+
+    ELSE 
+        exitg1 := 1;
+    END_IF;
+
+UNTIL NOT(exitg1 = 0)
+END_REPEAT;
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="eml_rand_mt19937ar">
+      <LineId Id="3" Count="146" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

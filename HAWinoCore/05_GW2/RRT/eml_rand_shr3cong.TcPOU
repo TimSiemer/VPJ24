@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="eml_rand_shr3cong" Id="{71c1aeb3-e2a0-42f2-b6d4-6f0da5b6846f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK eml_rand_shr3cong
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+	b_r: LREAL;
+END_VAR
+VAR_IN_OUT
+	state: ARRAY[0..1] OF UDINT;
+END_VAR
+VAR
+	b: UDINT;
+	c: UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+b := (69069 * state[0]) + 1234567;
+c := DWORD_TO_UDINT((SHL(UDINT_TO_DWORD(state[1]), 13)) XOR UDINT_TO_DWORD(state[1]));
+c := DWORD_TO_UDINT((SHR(UDINT_TO_DWORD(c), 17)) XOR UDINT_TO_DWORD(c));
+c := DWORD_TO_UDINT((SHL(UDINT_TO_DWORD(c), 5)) XOR UDINT_TO_DWORD(c));
+state[0] := b;
+state[1] := c;
+b_r := UDINT_TO_LREAL(b + c) * 2.328306436538696E-10;
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="eml_rand_shr3cong">
+      <LineId Id="3" Count="8" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

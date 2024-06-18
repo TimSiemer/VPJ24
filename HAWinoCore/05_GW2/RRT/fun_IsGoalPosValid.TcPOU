@@ -1,0 +1,104 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="fun_IsGoalPosValid" Id="{8a223b8b-b24e-4611-b3c1-cf23630fffed}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION fun_IsGoalPosValid : BOOL
+VAR_INPUT
+	Ilr_RoboPosX: LREAL;
+	Ilr_RoboPosY: LREAL;
+	AGV_one_x: LREAL;
+	AGV_one_y: LREAL;
+	AGV_two_x: LREAL;
+	AGV_two_y: LREAL;
+	AGV_three_x: LREAL;
+	AGV_three_y: LREAL;
+	AGV_size: LREAL;
+END_VAR
+VAR
+	a: LREAL;
+	b_a: LREAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+(* 'fun_IsGoalPosValid:4' r_BoxPositionXOpenArea_1 = 2; *)
+(* 'fun_IsGoalPosValid:5' r_BoxPositionYOpenArea_1 = 3.5; *)
+(* 'fun_IsGoalPosValid:6' r_BoxSizeXOpenArea_1 = 1.5; *)
+(* 'fun_IsGoalPosValid:7' r_BoxSizeYOpenArea_1 = 14; *)
+(* 'fun_IsGoalPosValid:8' r_BoxPositionXOpenArea_2 = 3.5; *)
+(* 'fun_IsGoalPosValid:9' r_BoxPositionYOpenArea_2 = 3.5; *)
+(* 'fun_IsGoalPosValid:10' r_BoxSizeXOpenArea_2 = 22; *)
+(* 'fun_IsGoalPosValid:11' r_BoxSizeYOpenArea_2 = 8; *)
+(* 'fun_IsGoalPosValid:12' r_BoxPositionXOpenArea_3 = 25.5; *)
+(* 'fun_IsGoalPosValid:13' r_BoxPositionYOpenArea_3 = 3.5; *)
+(* 'fun_IsGoalPosValid:14' r_BoxSizeXOpenArea_3 = 2.5; *)
+(* 'fun_IsGoalPosValid:15' r_BoxSizeYOpenArea_3 = 14; *)
+(* 'fun_IsGoalPosValid:16' r_BoxPositionXOpenArea_4 = 28; *)
+(* 'fun_IsGoalPosValid:17' r_BoxPositionYOpenArea_4 = 3.5; *)
+(* 'fun_IsGoalPosValid:18' r_BoxSizeXOpenArea_4 = 7; *)
+(* 'fun_IsGoalPosValid:19' r_BoxSizeYOpenArea_4 = 11.5; *)
+(* Überprüfung der Bereiche *)
+(* 'fun_IsGoalPosValid:22' if     ((r_BoxPositionXOpenArea_1 <= Ilr_RoboPosX && Ilr_RoboPosX <= r_BoxPositionXOpenArea_1 + r_BoxSizeXOpenArea_1) && ... *)
+(* 'fun_IsGoalPosValid:23'         (r_BoxPositionYOpenArea_1 <= Ilr_RoboPosY && Ilr_RoboPosY <= r_BoxPositionYOpenArea_1 + r_BoxSizeYOpenArea_1) || ... *)
+(* 'fun_IsGoalPosValid:24'         (r_BoxPositionXOpenArea_2 <= Ilr_RoboPosX && Ilr_RoboPosX <= r_BoxPositionXOpenArea_2 + r_BoxSizeXOpenArea_2) && ... *)
+(* 'fun_IsGoalPosValid:25'         (r_BoxPositionYOpenArea_2 <= Ilr_RoboPosY && Ilr_RoboPosY <= r_BoxPositionYOpenArea_2 + r_BoxSizeYOpenArea_2) || ... *)
+(* 'fun_IsGoalPosValid:26'         (r_BoxPositionXOpenArea_3 <= Ilr_RoboPosX && Ilr_RoboPosX <= r_BoxPositionXOpenArea_3 + r_BoxSizeXOpenArea_3) && ... *)
+(* 'fun_IsGoalPosValid:27'         (r_BoxPositionYOpenArea_3 <= Ilr_RoboPosY && Ilr_RoboPosY <= r_BoxPositionYOpenArea_3 + r_BoxSizeYOpenArea_3) || ... *)
+(* 'fun_IsGoalPosValid:28'         (r_BoxPositionXOpenArea_4 <= Ilr_RoboPosX && Ilr_RoboPosX <= r_BoxPositionXOpenArea_4 + r_BoxSizeXOpenArea_4) && ... *)
+(* 'fun_IsGoalPosValid:29'         (r_BoxPositionYOpenArea_4 <= Ilr_RoboPosY && Ilr_RoboPosY <= r_BoxPositionYOpenArea_4 + r_BoxSizeYOpenArea_4)) && ... *)
+(* 'fun_IsGoalPosValid:30'         (AGV_size <= sqrt((Ilr_RoboPosX- AGV_one_x)^2+(Ilr_RoboPosY-AGV_one_y)^2))&&... *)
+(* 'fun_IsGoalPosValid:31'         (AGV_size <= sqrt((Ilr_RoboPosX- AGV_two_x)^2+(Ilr_RoboPosY-AGV_two_y)^2))&&... *)
+(* 'fun_IsGoalPosValid:32'         (AGV_size <= sqrt((Ilr_RoboPosX- AGV_three_x)^2+(Ilr_RoboPosY-AGV_three_y)^2)) *)
+
+IF ((((((2.0 <= Ilr_RoboPosX) AND (Ilr_RoboPosX <= 3.5)) AND (3.5 <= Ilr_RoboPosY)) AND (Ilr_RoboPosY <= 17.5)) OR ((((3.5 <= Ilr_RoboPosX) AND (Ilr_RoboPosX <= 25.5)) AND (3.5 <= Ilr_RoboPosY)) AND (Ilr_RoboPosY <= 11.5))) OR ((((25.5 <= Ilr_RoboPosX) AND (Ilr_RoboPosX <= 28.0)) AND (3.5 <= Ilr_RoboPosY)) AND (Ilr_RoboPosY <= 17.5))) OR ((((28.0 <= Ilr_RoboPosX) AND (Ilr_RoboPosX <= 35.0)) AND (3.5 <= Ilr_RoboPosY)) AND (Ilr_RoboPosY <= 15.0)) THEN 
+    a := Ilr_RoboPosX - AGV_one_x;
+    b_a := Ilr_RoboPosY - AGV_one_y;
+
+    IF AGV_size <= SQRT((a * a) + (b_a * b_a)) THEN 
+        a := Ilr_RoboPosX - AGV_two_x;
+        b_a := Ilr_RoboPosY - AGV_two_y;
+
+        IF AGV_size <= SQRT((a * a) + (b_a * b_a)) THEN 
+            a := Ilr_RoboPosX - AGV_three_x;
+            b_a := Ilr_RoboPosY - AGV_three_y;
+
+            IF AGV_size <= SQRT((a * a) + (b_a * b_a)) THEN 
+                (* Robo in OpenArea *)
+                (* 'fun_IsGoalPosValid:37' x_IsInside = true; *)
+                fun_IsGoalPosValid := TRUE;
+            ELSE 
+                (* 'fun_IsGoalPosValid:39' else *)
+                (* Robo außerhalb der Map *)
+                (* 'fun_IsGoalPosValid:42' x_IsInside = false; *)
+                fun_IsGoalPosValid := FALSE;
+            END_IF;
+
+        ELSE 
+            (* 'fun_IsGoalPosValid:39' else *)
+            (* Robo außerhalb der Map *)
+            (* 'fun_IsGoalPosValid:42' x_IsInside = false; *)
+            fun_IsGoalPosValid := FALSE;
+        END_IF;
+
+    ELSE 
+        (* 'fun_IsGoalPosValid:39' else *)
+        (* Robo außerhalb der Map *)
+        (* 'fun_IsGoalPosValid:42' x_IsInside = false; *)
+        fun_IsGoalPosValid := FALSE;
+    END_IF;
+
+ELSE 
+    (* 'fun_IsGoalPosValid:39' else *)
+    (* Robo außerhalb der Map *)
+    (* 'fun_IsGoalPosValid:42' x_IsInside = false; *)
+    fun_IsGoalPosValid := FALSE;
+END_IF;
+
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="fun_IsGoalPosValid">
+      <LineId Id="3" Count="74" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

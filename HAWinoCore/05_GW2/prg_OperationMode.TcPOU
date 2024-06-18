@@ -1,0 +1,814 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="prg_OperationMode" Id="{409659f3-94e2-4df0-bb1e-aad55c474ae0}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM prg_OperationMode
+VAR_INPUT
+	x_Arrived : BOOL;
+	x_FS5_arrived : BOOL;
+END_VAR
+VAR
+(* Enum für die Statemachine *)
+	e_RoboState				: E_STATE;
+	e_Parking 				: E_STATE_PARKING;
+	e_Charging 				: E_STATE_CHARG;
+	
+	(* Timer *)
+	fb_TMR_Init 			: TON;		// Zum Debug für Init delay
+	fb_TMR_DockingDelay 	: TON;		// Redocking Verzögerung
+	fb_TMR_2 				: TON;					
+	fb_TMR_3 				: TON;	
+	fb_TMR_4 				: TON;	
+	fb_TMR_5 				: TON;
+	fb_TMR_6				:TON;
+	fb_TMR_7				:TON;
+	fb_TMR_8				:TON;
+
+	(* FB Deklarationen *)
+	fb_DetermineArea_0 		: fb_DetermineArea;
+	fb_GetOpenAreaPath_0 	: fb_GetOpenAreaPath;
+	
+	(*** Programmvariablen ***)
+	
+	(* Roboter Soll-Pose *)
+	struct_SollPose 		: RobotPose;
+	
+	(* Roboter Ist-Pose *)
+	struct_IstPose 			: RobotPose;
+	
+	(* Wegpunkliste *)
+	arr_struct_Waypoints 	: ARRAY[1..10] OF RobotSollPose;			
+	arr_struct_WaypointsHandover : ARRAY[1..10] OF RobotSollPose;
+	
+	(* Wegpunktliste veröffentlichen *)
+	x_WayPointListPush 		: BOOL := FALSE;
+	
+	(* Zielpose *)
+	lr_GoalPosX 			: LREAL := 0;										
+	lr_GoalPosY 			: LREAL := 0;
+	lr_GoalOrientation 		: LREAL := 0;
+	
+	(* Ziel der Wegpunktliste erreicht *)
+	x_ReachedDest 			: BOOL := FALSE;		
+
+	(* Robo in Bewegung *) 
+	x_IsMoving				: BOOL;					
+	
+	(* Index für Wegpunktliste  *)
+	i_Index					: INT;						
+	
+	(* Gibt an ob sich die Wegpunktliste verändert hat *)
+	x_PoseListChanged 		: BOOL;			 
+	
+	(* Wenn true soll ParkingPos angefahren werden *)
+	x_Parking				: BOOL;
+	
+	(* Für Kontrolle, ob neue Id vorliegt *)
+	i_LastJobId				: INT;	
+
+	(* Bestätigen der Störung *)				
+	x_Confirmed				: BOOL;
+	s_Exceptions : STRING(255); 
+	
+	// Variablen NavigationCA
+	
+	i_Dockmodus: INT;
+	fb_Docking: fb_DockingPath();
+	usi_Index_1: INT;
+	i_ChargingStat : INT;
+	I_CurrentPocket: INT;
+	i_CurrentStation: INT;
+	e_CA: E_STATE_CA;
+	i_LastJobId2: INT;
+	
+	// Variablen Wait State
+	
+	e_State_wait_: E_STATE_WAIT;
+	x_NewDrivingjob: BOOL;
+	x_Ausfahrtfrei: BOOL;
+	x_wait:BOOL;
+	x_LS_closed:BOOL;
+	x_gripperisclosed:BOOL;
+	x_grippersollclosed:BOOL;
+	x_CloseGripper:BOOL;
+	
+	//Charging State
+	
+	x_IsDisconnected: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+
+// Wegpunkte nullen
+FOR usi_Index_1 := 1 TO 10 BY 1 DO
+	arr_struct_Waypoints[usi_Index_1].x := 0;
+	arr_struct_Waypoints[usi_Index_1].y := 0;
+	arr_struct_Waypoints[usi_Index_1].theta := 0;
+	arr_struct_Waypoints[usi_Index_1].m := 0;
+END_FOR
+
+// Robo Position bestimmen
+struct_IstPose:=main.getIstPose();
+
+fb_DetermineArea_0(	Ilr_RoboPosX := struct_IstPose.x, Ilr_RoboPosY := struct_IstPose.y); 
+
+// ZUSTANDSAUTOMAT
+CASE e_RoboState OF 	
+	
+	// Initialisierung nach Start des Roboters	
+	E_STATE.Init:
+	
+		ACT_Init();
+		
+		IF fb_TMR_Init.Q THEN
+			fb_TMR_Init(IN := FALSE);
+			e_RoboState := E_STATE.RegistrationRequest;
+		END_IF	
+	
+	// Warten auf Antwort vom Routenplaner, dass Robo in Flotte aufgenommen wird					
+	E_STATE.RegistrationRequest: 
+		
+		GV.statusRobot.Logging := TRUE;
+		
+		IF GV.statusFleetMgnt.Logged THEN 
+			e_RoboState := E_STATE.RegistrationDone;
+		END_IF
+	
+	// Regestrierung abgeschlossen / Kontrolle der Position des Robos						
+	E_STATE.RegistrationDone: 
+		
+		CASE fb_DetermineArea_0.Oe_Area OF 
+			
+			 E_AREA.OpenArea : 
+			 	
+				e_RoboState := E_STATE.Idle;
+				
+			E_AREA.PrakingArea:
+			
+				e_RoboState := E_STATE.EnterPrakingPos;
+			
+			E_AREA.LoadArea:
+			
+				s_Exceptions := 'E00.1 : Initialization in LoadArea';
+				e_RoboState := E_STATE.Disturbance;
+				
+			E_AREA.ConstrainedArea:
+				
+				s_Exceptions := 'E00.2 : Initialization in ConstrainedArea';
+				e_RoboState := E_STATE.Disturbance;
+				
+			E_AREA.NotDef:
+			
+				s_Exceptions := 'E00.0 : Initialization in NotDefArea';
+				e_RoboState := E_STATE.Disturbance;
+				
+			ELSE
+				
+				s_Exceptions := 'E00.0 : Initialization in NotDefArea';
+				e_RoboState := E_STATE.Disturbance;
+		END_CASE
+		
+	// Bereit für neuen Fahrauftrag
+	E_STATE.Idle: 
+	
+		Gv.statusRobot.Availability := TRUE;
+				
+		// Wenn eine Neue JobID vorlieg, soll eine neue Route geplant werden
+		// Sollte sich Robo in der ParkingArea befinden muss zunächst ausgeparkt werden
+		IF fb_DetermineArea_0.Oe_Area = E_AREA.PrakingArea AND GV.statusFleetMgnt.JobId <> i_LastJobId AND GV.statusFleetMgnt.JobId <> 0 AND NOT prg_Data.x_Learn_Stations THEN
+			
+			i_LastJobId := GV.statusFleetMgnt.JobId;
+			
+			e_RoboState := E_STATE.LeavePrakingPos;
+		
+		
+		// Wenn Robo in der OpenArea wird direkt eine neue Route geplant	
+		ELSIF fb_DetermineArea_0.Oe_Area = E_AREA.OpenArea AND GV.statusFleetMgnt.JobId <> i_LastJobId AND GV.statusFleetMgnt.JobId <> 0 AND NOT prg_Data.x_Learn_Stations THEN
+			
+			i_LastJobId := GV.statusFleetMgnt.JobId;
+			
+			e_RoboState := E_STATE.NavigationOA;
+		END_IF
+		
+		// State zum Einlernen der Positionen
+		IF prg_Data.x_Learn_Stations THEN
+			e_RoboState := E_STATE.Learning;
+		END_IF
+		
+	// Routenplanung in der OpenArea						
+	E_STATE.NavigationOA: 
+		
+		ACT_NavigationOA();
+
+		// EntryPonit erreicht
+		IF x_ReachedDest AND NOT x_Parking THEN  
+			x_IsMoving := FALSE;
+			e_RoboState := E_STATE.NavigationCA;
+			e_CA := E_STATE_CA.Docking;
+		ELSIF x_ReachedDest AND x_Parking THEN
+			x_Parking := FALSE;
+			x_IsMoving := FALSE;
+			e_RoboState := E_STATE.EnterPrakingPos;
+		END_IF
+
+	// Einparken
+	E_STATE.EnterPrakingPos:
+		
+		ACT_EnterParkingPos();
+		
+		// Parkposition erreicht
+		IF 	x_ReachedDest THEN
+			x_IsMoving := FALSE;
+			e_RoboState := E_STATE.Idle;
+		END_IF
+			
+	// Ausparken						
+	E_STATE.LeavePrakingPos :
+		
+		ACT_LeavingParkingPos();
+		
+		// Parkpos verlassen
+		IF 	x_ReachedDest THEN
+			fb_TMR_6(IN:=FALSE);  
+			x_IsMoving := FALSE;
+			e_RoboState := E_STATE.NavigationOA;
+		END_IF
+		
+		
+	E_STATE.NavigationCA: 
+		CASE e_CA OF
+			E_STATE_CA.Docking:
+			gv.robotPose.i_TargetStation:=20;
+			x_NewDrivingjob:=FALSE;
+				i_Dockmodus:=2;
+				IF prg_data.arr_otherStat[1] <> gv.statusFleetMgnt.DrivingJob[1] AND prg_data.arr_otherStat[2] <> gv.statusFleetMgnt.DrivingJob[1] AND prg_data.arr_otherStat[3] <> gv.statusFleetMgnt.DrivingJob[1] THEN
+					fb_TMR_8(IN:=TRUE, PT:=T#3S);
+					
+					IF fb_TMR_8.Q THEN
+								fb_Docking(	NewWPList:=1,
+								Modus:=i_Dockmodus,
+								IstStation:=0,
+								SollStation:=gv.statusFleetMgnt.DrivingJob[1],
+								IstTasche:=0,
+								SollTasche:=gv.statusFleetMgnt.DrivingJob[2]);
+						i_CurrentStation:=gv.statusFleetMgnt.DrivingJob[1];
+						i_CurrentPocket:=gv.statusFleetMgnt.DrivingJob[2];
+						arr_struct_Waypoints:=fb_Docking.WayPointList;
+						e_CA := E_STATE_CA.Driving;
+						x_WayPointListPush := TRUE;
+					END_IF
+				ELSIF gv.statusFleetMgnt.DrivingJob[1]=0 THEN
+					e_RoboState := E_STATE.Idle;
+				END_IF
+				
+				
+				
+			E_STATE_CA.Relocation:
+				i_Dockmodus:=3;
+				x_NewDrivingjob:=FALSE;
+				fb_Docking(	NewWPList:=1,
+						Modus:=i_Dockmodus,
+						IstStation:=i_CurrentStation,
+						SollStation:=gv.statusFleetMgnt.DrivingJob[1],
+						IstTasche:=I_CurrentPocket,
+						SollTasche:=gv.statusFleetMgnt.DrivingJob[2]);
+				arr_struct_Waypoints:=fb_Docking.WayPointList;
+				i_CurrentStation:=gv.statusFleetMgnt.DrivingJob[1];
+				i_CurrentPocket:=gv.statusFleetMgnt.DrivingJob[2];
+				IF i_CurrentStation=9 OR i_CurrentStation=10 THEN
+					i_ChargingStat:=gv.statusFleetMgnt.DrivingJob[1];
+				END_IF
+				IF i_CurrentStation <> 8 THEN
+				e_CA := E_STATE_CA.Driving;
+				x_WayPointListPush := TRUE;
+				ELSIF i_CurrentStation = 8 AND prg_Data.x_Ausfahrt1 = FALSE THEN
+				e_CA := E_STATE_CA.Driving;
+				x_WayPointListPush := TRUE;
+				END_IF
+				
+				
+			E_STATE_CA.Undocking:
+				i_Dockmodus:=1;
+				x_NewDrivingjob:=FALSE;
+				IF i_CurrentStation<=4 AND prg_data.x_Ausfahrt2 = FALSE THEN
+					gv.statusPathAllocationRobo.x_RightPathAllocated:=TRUE;
+				ELSIF i_CurrentStation>=5 AND i_CurrentStation<=8 AND prg_data.x_Ausfahrt1 = FALSE THEN
+					gv.statusPathAllocationRobo.x_LeftPathAllocated:=TRUE;
+				ELSE
+					;
+				END_IF
+				fb_Docking(	NewWPList:=1,
+						Modus:=i_Dockmodus,
+						IstStation:=i_CurrentStation,
+						SollStation:=0,
+						IstTasche:=I_CurrentPocket,
+						SollTasche:=0);
+				arr_struct_Waypoints:=fb_Docking.WayPointList;
+				
+				
+					IF i_CurrentStation<=4 AND prg_Data.x_Ausfahrt2 = FALSE THEN
+						x_Ausfahrtfrei:=TRUE;
+					ELSIF i_CurrentStation>=5 AND i_CurrentStation<=8 AND prg_Data.x_Ausfahrt1 = FALSE THEN
+						x_Ausfahrtfrei:=TRUE;
+					ELSE
+						x_Ausfahrtfrei:=FALSE;
+					END_IF
+				
+				IF x_Ausfahrtfrei THEN
+					x_WayPointListPush := TRUE;
+					fb_TMR_7(IN:=FALSE);
+					e_CA := E_STATE_CA.Driving;
+					i_CurrentStation:=0;
+					i_CurrentPocket:=0;
+				END_IF
+			E_STATE_CA.Driving:
+					fb_TMR_4(IN:=FALSE);
+					IF struct_SollPose.x = 0 OR x_FS5_arrived THEN
+						x_Arrived:=TRUE;
+						x_FS5_arrived:=FALSE;
+					ELSE
+						;//x_Arrived:=False;
+					END_IF
+			
+				IF i_Dockmodus = 1 AND x_Arrived THEN
+					x_Arrived:=FALSE;
+					e_RoboState := E_STATE.Idle;
+					gv.statusPathAllocationRobo.x_LeftPathAllocated:=FALSE;
+					gv.statusPathAllocationRobo.x_RightPathAllocated:=FALSE;
+				ELSIF i_Dockmodus = 2 AND x_Arrived THEN
+					x_Arrived:=FALSE;
+					 gv.statusRobot.TaskCompleted:=TRUE;
+					IF i_CurrentStation <=8 THEN
+						IF I_CurrentPocket <> 3 THEN
+							x_wait:=FALSE;
+						ELSE
+							x_wait:=TRUE;
+						END_IF
+						e_RoboState := E_STATE.Wait;
+					ELSIF i_CurrentStation =9 OR i_CurrentStation =10 THEN
+						e_RoboState := E_STATE.Charging;
+					END_IF
+				ELSIF i_Dockmodus = 3 AND x_Arrived AND I_CurrentPocket<>3 THEN
+					x_Arrived:=FALSE;
+					x_wait:=FALSE;
+					gv.statusRobot.TaskCompleted:=TRUE;
+					e_RoboState := E_STATE.Wait;
+				ELSIF i_Dockmodus = 3 AND x_Arrived AND I_CurrentPocket=3 THEN
+					x_Arrived:=FALSE;
+					gv.statusRobot.TaskCompleted:=TRUE;
+					e_RoboState := E_STATE.Wait;
+				END_IF	
+		END_CASE
+		
+	// Ladevorgang
+	E_STATE.Charging: 
+		
+		ACT_Charging();
+		
+		// Wenn neue JobID kommt, laden abbrechen					
+		IF GV.statusFleetMgnt.JobId <> i_LastJobId AND GV.statusFleetMgnt.JobId <> 0 AND x_IsDisconnected THEN
+			x_IsDisconnected := FALSE;
+			e_Charging := E_STATE_CHARG.Idle;			
+			e_RoboState := E_STATE.LeaveChargingPos;
+		END_IF
+		
+	// Verlassen der LadePosition	
+	E_STATE.LeaveChargingPos:	
+	
+		ACT_LeavingCharingPos();
+		
+		// LadePos verlassen
+		IF 	x_ReachedDest THEN  
+			x_IsMoving := FALSE;
+			e_RoboState := E_STATE.Idle;
+			i_CurrentStation:=0;
+		END_IF
+			
+	// Robo steht zum Init Zeitpunkt nicht in der OpenArea oder in der ParkingArea 		
+	E_STATE.Disturbance: 
+	
+		Gv.statusRobot.Availability := FALSE;
+		
+		IF x_Confirmed THEN 
+			s_Exceptions := '';
+			e_RoboState := E_STATE.Idle;
+		END_IF
+		
+	E_State.Wait:
+				IF I_CurrentPocket = 3 THEN
+					e_State_wait_:= E_STATE_WAIT.RFID;
+				ELSE
+					e_State_wait_:= E_STATE_WAIT.Tasche;
+				END_IF
+						CASE e_State_wait_ OF
+							E_STATE_WAIT.Tasche:
+							x_gripperisclosed:=main.getGripperistClosed();
+							x_LS_closed:=main.getGripperLSAusgeloest();
+							fb_TMR_4(IN:=TRUE, PT:=T#500S);
+							IF x_gripperisclosed=TRUE AND x_LS_closed =TRUE AND x_wait=FALSE THEN
+								x_wait:=TRUE;
+								x_grippersollclosed:=FALSE;
+							ELSIF x_gripperisclosed=FALSE AND x_LS_closed =TRUE AND x_wait=FALSE THEN
+								x_wait:=TRUE;
+								x_grippersollclosed:=TRUE;
+								
+							END_IF
+							fb_TMR_2(IN:=FALSE, PT:= T#10S);
+							IF fb_TMR_2.Q THEN
+								e_CA := E_STATE_CA.Undocking;
+								fb_TMR_2(IN:=FALSE);
+								e_RoboState := E_STATE.NavigationCA;
+							ELSIF (x_NewDrivingjob=TRUE AND gv.statusFleetMgnt.DrivingJob[1]<>i_CurrentStation) THEN
+								//i_LastJobId2:=gv.statusFleetMgnt.JobId;
+								e_CA := E_STATE_CA.Undocking;
+								fb_TMR_2(IN:=FALSE);
+								e_RoboState := E_STATE.NavigationCA;
+								
+							ELSIF (x_NewDrivingjob=TRUE AND gv.statusFleetMgnt.DrivingJob[1]=i_CurrentStation AND gv.statusFleetMgnt.DrivingJob[2]<>I_CurrentPocket) THEN
+								i_LastJobId2:=gv.statusFleetMgnt.JobId;
+								e_CA := E_STATE_CA.Relocation;
+								fb_TMR_2(IN:=FALSE);
+								e_RoboState := E_STATE.NavigationCA;
+								ELSIF (x_NewDrivingjob=TRUE AND gv.statusFleetMgnt.DrivingJob[1]=i_CurrentStation AND gv.statusFleetMgnt.DrivingJob[2]=I_CurrentPocket) THEN
+								i_LastJobId2:=gv.statusFleetMgnt.JobId;
+								fb_TMR_3(IN:=TRUE, PT:= T#500MS);
+								IF x_gripperisclosed = FALSE AND x_LS_closed = TRUE THEN
+									x_grippersollclosed:=TRUE;
+								END_IF
+								IF fb_TMR_3.Q = TRUE THEN
+									x_NewDrivingjob:=FALSE;
+									.GV.statusRobot.TaskCompleted:=TRUE;
+									fb_TMR_3(IN:=FALSE);
+								END_IF
+							END_IF
+							E_STATE_WAIT.RFID:
+							IF (x_NewDrivingjob AND gv.statusFleetMgnt.DrivingJob[1]<>i_CurrentStation) THEN
+								//i_LastJobId2:=gv.statusFleetMgnt.JobId;
+								e_CA := E_STATE_CA.Undocking;
+								e_RoboState := E_STATE.NavigationCA;
+								
+							ELSIF (x_NewDrivingjob AND gv.statusFleetMgnt.DrivingJob[1]=i_CurrentStation) THEN
+								//i_LastJobId2:=gv.statusFleetMgnt.JobId;
+								e_CA := E_STATE_CA.Relocation;
+								e_RoboState := E_STATE.NavigationCA;
+							END_IF
+						END_CASE
+	E_State.Learning:
+						IF .prg_Data.x_Learn_Stations = FALSE AND prg_Data.x_Robo_Free = TRUE THEN
+							e_RoboState :=E_STATE.Idle;
+						END_IF
+	ELSE e_RoboState := E_STATE.Init;
+END_CASE
+
+// OUTPUT
+
+// Kontrolle, ob sich Wegpunkte geändert haben
+FOR i_index := 1 TO 10 BY 1 DO
+	IF 	arr_struct_WaypointsHandover[i_index].x <>arr_struct_Waypoints[i_index].x OR
+		arr_struct_WaypointsHandover[i_index].y <>arr_struct_Waypoints[i_index].y OR
+		arr_struct_WaypointsHandover[i_index].theta <>arr_struct_Waypoints[i_index].theta OR
+		arr_struct_WaypointsHandover[i_index].m <>arr_struct_Waypoints[i_index].m THEN
+		
+		x_PoseListChanged := TRUE;
+		EXIT;
+	ELSE 
+		x_PoseListChanged := FALSE;
+	END_IF
+END_FOR
+
+// Wenn neue Wegpunktliste generiert und sich Punkte in der Liste geändert haben soll diese Liste an GW3 übergeben werden
+IF x_WayPointListPush AND x_PoseListChanged THEN
+	arr_struct_WaypointsHandover := arr_struct_Waypoints;									
+	main.setSollPoseArray(ADR(arr_struct_WaypointsHandover));
+	x_WayPointListPush := FALSE;
+END_IF
+
+// Kontrolle, ob Ziel der Wegpunktliste erreicht wurde
+struct_SollPose := Main.getSollPose();
+IF struct_SollPose.x = 0 AND struct_SollPose.y = 0 AND x_IsMoving THEN
+	x_ReachedDest := TRUE;
+ELSE
+	x_ReachedDest := FALSE;
+END_IF
+
+IF GV.statusFleetMgnt.JobId <> i_LastJobId2 THEN
+	x_NewDrivingjob:=TRUE;
+	GV.statusRobot.JobId := GV.statusFleetMgnt.JobId;
+	GV.statusRobot.TaskCompleted:=FALSE;
+	i_LastJobId2:=GV.statusFleetMgnt.JobId;
+END_IF
+
+IF GV.statusFleetMgnt.JobId <> i_LastJobId THEN
+	//i_LastJobId := GV.statusFleetMgnt.JobId;
+	GV.statusRobot.JobId := GV.statusFleetMgnt.JobId;
+END_IF
+
+IF x_grippersollclosed THEN
+	fb_tmr_5(IN:=TRUE, PT:=T#100MS);
+ELSE
+	fb_tmr_5(IN:=FALSE);
+END_IF
+
+IF x_grippersollclosed AND fb_tmr_5.Q THEN
+	x_CloseGripper:=TRUE;
+ELSE
+	x_CloseGripper:=FALSE;
+END_IF
+main.SetGripperSollClose(x_grippersollclosed);
+ 
+IF x_gripperisclosed AND x_LS_closed THEN
+	gv.statusRobot.Gripper := TRUE;
+ELSE
+	gv.statusRobot.Gripper := FALSE;
+END_IF
+
+GV.statusRobot.DrivingMode := Main.SollPose.m;
+GV.robotPose.i_CurrentStation := i_CurrentStation;]]></ST>
+    </Implementation>
+    <Action Name="ACT_Charging" Id="{7189cb49-e8a4-4088-803c-4c1cfe79fc1e}">
+      <Implementation>
+        <ST><![CDATA[CASE e_Charging OF 
+	E_STATE_CHARG.Idle:
+	
+		fb_TMR_DockingDelay(In:=TRUE,PT:=T#1S);
+		
+		// Wenn die Ladestation den Robo nicht erkannt wird, neu angedockt 
+		IF 	(GV.statusPowerManagementStat_1.IsConnected AND GV.statusFleetMgnt.DrivingJob[1] = 9 AND NOT GV.statusPowerManagementStat_1.IsChargingCompleted) OR 
+			(GV.statusPowerManagementStat_2.IsConnected AND GV.statusFleetMgnt.DrivingJob[1] = 10 AND NOT GV.statusPowerManagementStat_2.IsChargingCompleted)AND
+			fb_TMR_DockingDelay.Q THEN
+			
+			fb_TMR_DockingDelay(IN:=FALSE);
+			e_Charging := E_STATE_CHARG.Charging;
+			
+		ELSIF fb_TMR_DockingDelay.Q AND ((GV.statusFleetMgnt.DrivingJob[1] = 9 AND NOT GV.statusPowerManagementStat_1.IsChargingCompleted) OR 
+				(GV.statusFleetMgnt.DrivingJob[1] = 10 AND NOT GV.statusPowerManagementStat_2.IsChargingCompleted)) THEN
+			
+			fb_TMR_DockingDelay(IN:=FALSE); 
+			e_Charging := E_STATE_CHARG.ReDockingOut;
+			
+		END_IF
+	
+	// Ladestation neu anfahren
+	E_STATE_CHARG.ReDockingOut:
+		arr_struct_Waypoints[1].x:= Var_HAWIno.Stations_Global[i_CurrentStation].Taschen[1].DESTX;
+		arr_struct_Waypoints[1].y:= Var_HAWIno.Stations_Global[i_CurrentStation].Taschen[1].DESTY - 100;
+		arr_struct_Waypoints[1].theta := Var_HAWIno.Stations_Global[i_CurrentStation].Theta;
+		arr_struct_Waypoints[1].m := 3;
+		
+		arr_struct_Waypoints[2].x:= Var_HAWIno.Stations_Global[i_CurrentStation].Taschen[1].DESTX;
+		arr_struct_Waypoints[2].y:= Var_HAWIno.Stations_Global[i_CurrentStation].Taschen[1].DESTY;
+		arr_struct_Waypoints[2].theta := Var_HAWIno.Stations_Global[i_CurrentStation].Theta;
+		arr_struct_Waypoints[2].m := 5;
+		
+		x_WayPointListPush := TRUE;
+		x_IsMoving := TRUE;
+		
+		// EntryPonit erreicht
+		IF x_ReachedDest THEN
+			x_IsMoving := FALSE;
+			e_Charging := E_STATE_CHARG.Idle;
+		END_IF
+	
+	// Laden
+	E_STATE_CHARG.Charging:
+		//GV.statusRobot.TaskCompleted := TRUE;
+		
+		// Info an GW4, bereit für Stromaufnahme
+		//GV.statusRobot.Receptivity := TRUE;
+		
+		// Wenn Robo aufgeladen ist in Charg idle wechseln
+		IF 	(GV.statusPowerManagementStat_1.IsChargingCompleted AND GV.statusFleetMgnt.DrivingJob[1] = 9) OR 
+			(GV.statusPowerManagementStat_2.IsChargingCompleted AND GV.statusFleetMgnt.DrivingJob[1] = 10)THEN
+			e_Charging := E_STATE_CHARG.Idle;
+		END_IF
+END_CASE
+
+IF i_CurrentStation = 9 AND GV.statusPowerManagementStat_1.IsChargingCompleted THEN
+	x_IsDisconnected := TRUE;
+ELSIF i_CurrentStation = 10 AND GV.statusPowerManagementStat_2.IsChargingCompleted THEN
+	x_IsDisconnected := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ACT_EnterParkingPos" Id="{a83ccb52-aefb-454a-8062-edb53a191ec5}">
+      <Implementation>
+        <ST><![CDATA[// In Abhängigkeit von der Robo Numb wird die PrakPos vorgegeben	
+CASE Var_HAWIno.Robot_Number OF 
+	1	:	arr_struct_Waypoints[1].x := 6800;
+			arr_struct_Waypoints[1].y := 530;
+			arr_struct_Waypoints[1].theta := PI / 2.0;
+			arr_struct_Waypoints[1].m := 4;
+			
+			arr_struct_Waypoints[2].x := 6800;
+			arr_struct_Waypoints[2].y := 530;
+			arr_struct_Waypoints[2].theta := PI / 2.0;
+			arr_struct_Waypoints[2].m := 2;
+			
+	2	:	arr_struct_Waypoints[1].x := 5300;
+			arr_struct_Waypoints[1].y := 530;
+			arr_struct_Waypoints[1].theta := PI / 2.0;
+			arr_struct_Waypoints[1].m := 4;
+			
+			arr_struct_Waypoints[2].x := 5300;
+			arr_struct_Waypoints[2].y := 530;
+			arr_struct_Waypoints[2].theta := PI / 2.0;
+			arr_struct_Waypoints[2].m := 2;
+			
+	3	:	arr_struct_Waypoints[1].x := 3800;
+			arr_struct_Waypoints[1].y := 530;
+			arr_struct_Waypoints[1].theta := PI / 2.0;
+			arr_struct_Waypoints[1].m := 4;
+			
+			arr_struct_Waypoints[2].x := 3800;
+			arr_struct_Waypoints[2].y := 530;
+			arr_struct_Waypoints[2].theta := PI / 2.0;
+			arr_struct_Waypoints[2].m := 2;
+			
+	4	:	arr_struct_Waypoints[1].x := 2300;
+			arr_struct_Waypoints[1].y := 530;
+			arr_struct_Waypoints[1].theta := PI / 2.0;
+			arr_struct_Waypoints[1].m := 4;
+
+			arr_struct_Waypoints[2].x := 2300;
+			arr_struct_Waypoints[2].y := 530;
+			arr_struct_Waypoints[2].theta := PI / 2.0;
+			arr_struct_Waypoints[2].m := 2;		
+END_CASE
+
+x_WayPointListPush := TRUE;
+x_IsMoving := TRUE;
+]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ACT_Init" Id="{0fb0cec7-e373-4332-adea-bf9bdf6290e4}">
+      <Implementation>
+        <ST><![CDATA[GV.statusRobot.Logging := FALSE; 
+GV.statusRobot.TaskCompleted := FALSE;
+GV.statusRobot.Availability := TRUE;
+
+i_LastJobId := GV.statusFleetMgnt.JobId;
+
+fb_TMR_Init(IN := TRUE, PT := T#5S);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ACT_LeavingCharingPos" Id="{6fa893c6-4cb6-4ce4-b863-52a14c6b050f}">
+      <Implementation>
+        <ST><![CDATA[// Verlassen der LadePos 1 oder 2	
+arr_struct_Waypoints[1].x:= Var_HAWIno.Stations_Global[i_CurrentStation].Taschen[1].DESTX;
+arr_struct_Waypoints[1].y:=.Var_HAWIno.Stations_Global[i_CurrentStation].EntryPOSY + 200;
+arr_struct_Waypoints[1].theta := Var_HAWIno.Stations_Global[i_CurrentStation].Theta;
+arr_struct_Waypoints[1].m := 4;
+
+arr_struct_Waypoints[2].x:= Var_HAWIno.Stations_Global[i_CurrentStation].Taschen[1].DESTX;
+arr_struct_Waypoints[2].y:=.Var_HAWIno.Stations_Global[i_CurrentStation].EntryPOSY;
+arr_struct_Waypoints[2].theta := PI / 2.0;
+arr_struct_Waypoints[2].m := 3;		
+			
+x_WayPointListPush := TRUE;
+x_IsMoving := TRUE;]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ACT_LeavingParkingPos" Id="{dc07e71a-0bbb-429c-94fc-a5afbd3a5759}">
+      <Implementation>
+        <ST><![CDATA[// In Abhängigkeit von der Robo Numb wird die jeweilige PrakPos verlassen					
+CASE Var_HAWIno.Robot_Number OF 
+	1	:	arr_struct_Waypoints[1].x := 6800;
+			arr_struct_Waypoints[1].y := 750; 
+			arr_struct_Waypoints[1].theta := PI / 2.0;
+			arr_struct_Waypoints[1].m := 3;
+			
+	2	:	arr_struct_Waypoints[1].x := 5300;
+			arr_struct_Waypoints[1].y := 750;
+			arr_struct_Waypoints[1].theta := PI / 2.0;
+			arr_struct_Waypoints[1].m := 3;
+			
+	3	:	arr_struct_Waypoints[1].x := 3800;
+			arr_struct_Waypoints[1].y := 750;
+			arr_struct_Waypoints[1].theta := PI / 2.0;
+			arr_struct_Waypoints[1].m := 3;
+			
+	4	:	arr_struct_Waypoints[1].x := 2300;
+			arr_struct_Waypoints[1].y := 750;
+			arr_struct_Waypoints[1].theta := PI / 2.0;
+			arr_struct_Waypoints[1].m := 3;	
+END_CASE
+
+x_WayPointListPush := TRUE;
+x_IsMoving := TRUE;]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ACT_NavigationOA" Id="{bd8581a3-1716-4859-9bc2-b468d099cd66}">
+      <Implementation>
+        <ST><![CDATA[
+gv.robotPose.i_TargetStation:=gv.statusFleetMgnt.DrivingJob[1];
+i_LastJobId := GV.statusFleetMgnt.JobId;
+		
+// Wenn der DJ[0][0] <> [0][0] wird eine EntryPos angefahren
+IF GV.statusFleetMgnt.DrivingJob[1] <> 0 AND GV.statusFleetMgnt.DrivingJob[2] <> 0 THEN
+	
+	// Ziele Pose festlegen
+	lr_GoalPosX := Var_HAWIno.Stations_Global[GV.statusFleetMgnt.DrivingJob[1]].EntryPOSX;
+	lr_GoalPosY := Var_HAWIno.Stations_Global[GV.statusFleetMgnt.DrivingJob[1]].EntryPOSY;
+	lr_GoalOrientation := PI/2.0;
+	
+	// Routenplanung in der Openarea mittels RRT-Algorithmus
+	fb_GetOpenAreaPath_0(	Ilr_GoalPosX := lr_GoalPosX, 
+							Ilr_GoalPosY := lr_GoalPosY, 
+							Ilr_GoalOrientaion := lr_GoalOrientation, 
+							Istruct_IstPose := struct_IstPose);
+	
+	// Übergabe der Wegpunkte
+	arr_struct_Waypoints := fb_GetOpenAreaPath_0.Oarr_struct_Waypointlist;
+
+	x_Parking := FALSE;
+	
+// Wenn der DJ[0][0] = [0][0] wird der Roboter an die Parkposition bewegt
+ELSE
+	
+	// In Abhägigkeit der Robo Numb Parkpos auswählen
+	CASE Var_HAWIno.Robot_Number OF 
+			1	:	lr_GoalPosX := 6800;
+					lr_GoalPosY := 900;
+					
+			2	:	lr_GoalPosX := 5300;
+					lr_GoalPosY := 900;
+					
+			3	:	lr_GoalPosX := 3800;
+					lr_GoalPosY := 900;
+					
+			4	:	lr_GoalPosX := 2300;
+					lr_GoalPosY := 900;		
+	END_CASE
+	
+	// Routenplanung in der Openarea mittels RRT-Algorithmus	 
+	fb_GetOpenAreaPath_0(	Ilr_GoalPosX := lr_GoalPosX, 
+							Ilr_GoalPosY := lr_GoalPosY, 
+							Ilr_GoalOrientaion := lr_GoalOrientation, 
+							Istruct_IstPose := struct_IstPose);
+	
+	// Übergabe der Wegpunkte
+	arr_struct_Waypoints := fb_GetOpenAreaPath_0.Oarr_struct_Waypointlist;
+	
+	// Info das in State EnterPrakingPos gesprungen werden soll, wenn Ziel in OpenArea erreicht wurde
+	x_Parking := TRUE;
+	
+END_IF
+
+// Wenn Ziel der Route belegt ist, soll nicht losgehfahren werden
+IF NOT fb_GetOpenAreaPath_0.Ox_Wait THEN
+		x_WayPointListPush := TRUE;	
+		x_IsMoving := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <LineIds Name="prg_OperationMode">
+      <LineId Id="8795" Count="1" />
+      <LineId Id="8158" Count="126" />
+      <LineId Id="8661" Count="0" />
+      <LineId Id="8286" Count="1" />
+      <LineId Id="8672" Count="0" />
+      <LineId Id="8288" Count="7" />
+      <LineId Id="8890" Count="0" />
+      <LineId Id="8296" Count="3" />
+      <LineId Id="8698" Count="0" />
+      <LineId Id="8697" Count="0" />
+      <LineId Id="8695" Count="0" />
+      <LineId Id="8300" Count="9" />
+      <LineId Id="8701" Count="0" />
+      <LineId Id="8891" Count="1" />
+      <LineId Id="8310" Count="56" />
+      <LineId Id="8694" Count="0" />
+      <LineId Id="8367" Count="7" />
+      <LineId Id="8895" Count="0" />
+      <LineId Id="8375" Count="54" />
+      <LineId Id="8990" Count="0" />
+      <LineId Id="8430" Count="140" />
+      <LineId Id="7067" Count="0" />
+    </LineIds>
+    <LineIds Name="prg_OperationMode.ACT_Charging">
+      <LineId Id="2" Count="59" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="prg_OperationMode.ACT_EnterParkingPos">
+      <LineId Id="2" Count="44" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="prg_OperationMode.ACT_Init">
+      <LineId Id="2" Count="5" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="prg_OperationMode.ACT_LeavingCharingPos">
+      <LineId Id="2" Count="11" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="prg_OperationMode.ACT_LeavingParkingPos">
+      <LineId Id="2" Count="23" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="prg_OperationMode.ACT_NavigationOA">
+      <LineId Id="59" Count="1" />
+      <LineId Id="2" Count="56" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

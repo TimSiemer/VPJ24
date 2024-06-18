@@ -1,0 +1,657 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="Lageregler" Id="{610b81e1-16b0-4873-b24c-37bcd57d0576}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM Lageregler
+VAR
+	SollPose : RobotSollPose;	//Fuehrungsgroesse
+	IstPose : RobotPose;		//Regelgroesse
+	SollVelo : RobotPose; 		//Stellgroesse
+	SollVelotrapez: RobotPose; 	//Stellgrösse nach Trapezprofil 
+	sollveloalt:RobotPose; 
+	
+	
+	BumperAktiv : BOOL;
+	i : int := 0; 
+	nextSollPose : BOOL := 0;
+	
+	//Fahrstufe 0 Variablen
+	Stop : RobotPose := (x :=0, y:= 0, theta:=0, e :=0); //Stehenbleiben
+	
+	//Fahrstufe 1 Variablen
+	TGreifer : TON := (PT:= T#0.5S);
+	state1 : INT := 1;
+	streckeX: LREAL;
+	streckeY: LREAL;
+	streckeTheta: LREAL;
+	vX: LREAL;
+	vY: LREAL;
+	vTheta: LREAL;
+	Xe: LREAL;
+	Ye: LREAL;
+	thetae: LREAL;
+	T: LREAL := 0.01;
+	
+	Coutx : LREAL;
+	Couty :LREAL; 
+	Coutt :LREAL;
+	
+	xvelP :LREAL;
+	xvelI :LREAL; 
+	yvelP :LREAL;
+	yvelI : LREAL; 
+	TvelP :LREAL;
+	TvelI :LREAL;
+	
+	//Zu Fahrstufe 2
+	
+	timer : TON := (PT := T#1S);
+	startup: BOOL := TRUE;
+	et : Robotpose;
+
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[ IF Main.Dummy THEN	//Wenn dummy läuft soll der Lageregler nicht Laufen
+ RETURN;
+END_IF;
+
+
+SollPose := Main.getSollPose();
+IstPose := Main.getIstPose();
+Bumperaktiv := Main.getBumperAktiv();
+
+CASE SollPose.m OF
+	0: Fahrstufe0();
+	1: Fahrstufe1();
+	2: fahrstufe2();
+	3: fahrstufe3();
+	4: fahrstufe4();
+	5: fahrstufe5();
+	6: fahrstufe6();
+ELSE 
+	fahrstufe0();	
+END_CASE
+
+//Trapezprofile 
+	Trapezprofil(sollvelo); 
+
+
+IF Bumperaktiv THEN
+	Main.SetSollVelo(Stop);
+ELSE
+	Main.SetSollVelo(sollvelotrapez);
+END_IF
+
+
+
+IF nextSollPose THEN
+	Main.nextSollPose();
+	nextSollPose := 0;
+END_IF]]></ST>
+    </Implementation>
+    <Method Name="Fahrstufe0" Id="{b68b00d2-2a01-454c-ab70-d033ec79e159}">
+      <Declaration><![CDATA[METHOD Fahrstufe0 : BOOL
+VAR_INPUT
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[SollVelo := Stop;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Fahrstufe1" Id="{be60aa17-0116-4e7d-afde-aa009faa8679}">
+      <Declaration><![CDATA[METHOD Fahrstufe1 : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	GripperEndlage : BOOL;	
+	GreiferZu : BOOL;
+
+		sollPosX: LREAL;
+	sollPosY: LREAL;
+	sollPos : RobotPose; 
+	istPos : RobotPose;
+
+	streckeX: LREAL;
+	istPosTheta: LREAL;
+	streckeY: LREAL;
+	streckeTheta: LREAL;
+	absToDynTheta: LREAL;
+	sollPosTheta: LREAL;
+	absolutThetaSoll: LREAL;
+	absolutThetaIst:LREAL;
+	vX: LREAL;
+	vY: LREAL;
+	vTheta: LREAL;
+	Xe: LREAL;
+	Ye: LREAL;
+	te: LREAL;
+ 
+ 
+	
+	Xreg : Regler:= (KP := 10 , KI:=50) ;
+	Yreg : Regler:= (KP := 75  , KI:=45) ; 
+	Treg : Regler:= (KP := 75 , KI:=45) ;
+ 
+	dI1: LREAL;
+	dI2: LREAL;
+	dI3: LREAL ;
+	Nre: LREAL;
+	timer : TON := (PT := T#1S);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GripperEndlage := Main.getGripperSLiderAusgeloest();
+ 
+sollPos := Main.getSollPose();
+istPos := Main.getIstPose();
+TGreifer();
+
+ 
+streckeX := sollPos.x*COS(istPos.theta) - istPos.x*COS(istPos.theta) - istPos.y*SIN(istPos.theta) + sollPos.y*SIN(istPos.theta);
+streckeY := sollPos.y*COS(istPos.theta) - istPos.y*COS(istPos.theta) + istPos.x*SIN(istPos.theta) - sollPos.x*SIN(istPos.theta);
+streckeTheta := Main.absToDynTheta(absolutThetaSoll:=sollPos.theta, absolutThetaIst := istPos.theta);
+		// Regeldifferenz
+		// vx, vy und vt sind Verstärkungen, damit der Fehler größer gewichtet wird 
+Xe := streckeX; 
+Ye := streckeY;
+te := streckeTheta;
+		// Normierung 
+Nre := SQRT((xe * xe) + (ye*ye )+ (te*0.03578*te*0.03578)+0.01);
+ 
+
+		//X-Regler 
+xvelP := Xreg.KP *Xe/Nre  ;
+IF xe < 15 THEN 
+	xvelI := xvelI+Xe/Nre* Xreg.KI*T;
+ELSE 
+	xvelI := 0 ; 
+END_IF
+Coutx := xvelP + xvelI;
+		// Ant Wind up		
+IF Coutx > 150 THEN
+    Coutx := 150; // Maximaler Ausgangswert begrenzen
+ELSIF Coutx < -150 THEN
+   		Coutx := -150; // Minimaler Ausgangswert begrenzen
+END_IF
+		// Y-Regler
+yvelP := Yreg.KP *Ye/Nre;
+IF Ye <15 THEN 
+	yvelI := yvelI + Ye/Nre*Yreg.KI *T; 
+ELSE 
+	yveli := 0; 
+END_IF
+Couty := yvelP + yvelI;
+		// Ant Wind up		
+IF Couty > 100 THEN
+   	Couty := 100; // Maximaler Ausgangswert begrenzen
+ELSIF Couty < -100 THEN
+    Couty := -100; // Minimaler Ausgangswert begrenzen
+END_IF
+		// T-Regler
+TvelP := Treg.KP * (te/Nre);
+IF te <0.15 THEN 
+	TvelI := TvelI+ (te/nre)*Treg.KI * T;
+ELSE 
+	TvelI := 0; 
+END_IF
+Coutt := TvelP + TvelI;
+		// Ant Wind up	
+IF Coutt > 100*0.03578 THEN
+    Coutt := 100*0.03578; // Maximaler Ausgangswert begrenzen
+ELSIF Coutt < -100*0.03578 THEN
+   	Coutt := -100*0.03578; // Minimaler Ausgangswert begrenzen
+END_IF
+		//Berechnung soll Velo
+Sollvelo.x := Coutx +100;
+Sollvelo.y := Couty;
+Sollvelo.theta := Coutt;
+		// Neue Soll Pose 	
+IF Ye > -5 AND Ye <5 AND te < 0.1 AND te > -0.1 AND Gripper.slider = FALSE THEN			
+		SollVelo.x := 0;
+		SollVelo.y := 0;
+		SollVelo.theta := 0;
+		nextSollPose:= 1;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Fahrstufe2" Id="{ffdbd52b-e10b-4e25-8ccd-693e92102d83}">
+      <Declaration><![CDATA[METHOD Fahrstufe2 : BOOL
+VAR_INPUT
+END_VAR
+
+VAR
+	sollPosX: LREAL;
+	sollPosY: LREAL;
+	
+	streckeX: LREAL;
+	istPosTheta: LREAL;
+	streckeY: LREAL;
+	streckeTheta: LREAL;
+	absToDynTheta: LREAL;
+	sollPosTheta: LREAL;
+	absolutThetaSoll: LREAL;
+	absolutThetaIst:LREAL;
+	vX: LREAL;
+	vY: LREAL;
+	vTheta: LREAL;
+	
+	Xe: LREAL;
+	Ye: LREAL;
+	te: LREAL;
+
+
+	
+	Xreg : Regler:= (KP := 90 , KI:=0.001) ;
+	Yreg : Regler:= (KP := 90  , KI:=0.001) ; 
+	Treg : Regler:= (KP := 90 , KI:=0.001) ;
+
+	dI1: LREAL;
+	dI2: LREAL;
+	dI3: LREAL ;
+	Nre: LREAL;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+// Trasformation in Roboter Koordinaten
+
+streckeX := sollPose.x*COS(istPose.theta) - istPose.x*COS(istPose.theta) - istPose.y*SIN(istPose.theta) + sollPose.y*SIN(IstPose.theta);
+streckeY := sollPose.y*COS(IstPose.theta) - IstPose.y*COS(IstPose.theta) + IstPose.x*SIN(IstPose.theta) - sollPose.x*SIN(IstPose.theta);
+streckeTheta := Main.absToDynTheta(absolutThetaSoll:=sollPose.theta, absolutThetaIst := IstPose.theta);
+
+// Regeldifferenz
+
+Xe := streckeX; 
+Ye := streckeY;
+te := streckeTheta; 
+
+// Normierung 
+Nre := SQRT((xe * xe) + (ye*ye )+ (te*0.03578*te*0.03578)+0.01);
+	
+
+//X-Regler 
+	xvelP := Xreg.KP *Xe/Nre  ;
+
+// Anti Windup
+	IF xe < 15 THEN 
+		xvelI := xvelI+Xe/Nre* Xreg.KI*T;
+	ELSE 
+		xvelI := 0 ; 
+	END_IF
+	Coutx := xvelP + xvelI;
+// Limiter		
+	IF Coutx > 100 THEN
+    	Coutx := 100; // Maximaler Ausgangswert begrenzen
+	ELSIF Coutx < -100 THEN
+    	Coutx := -100; // Minimaler Ausgangswert begrenzen
+	END_IF
+	
+// Y-Regler
+	yvelP := Yreg.KP *Ye/Nre;
+	
+	IF Ye <15 THEN 
+		yvelI := yvelI + Ye/Nre*Yreg.KI *T; 
+	ELSE 
+		yveli := 0; 
+	END_IF
+	
+	Couty := yvelP + yvelI;
+
+// Limiter		
+	IF Couty > 100 THEN
+    	Couty := 100; // Maximaler Ausgangswert begrenzen
+	ELSIF Couty < -100 THEN
+    	Couty := -100; // Minimaler Ausgangswert begrenzen
+	END_IF
+
+
+// T-Regler
+	TvelP := Treg.KP * (te/Nre);
+	
+	IF te <0.15 THEN 
+	TvelI := TvelI+ (te/nre)*Treg.KI * T;
+	ELSE 
+		TvelI := 0; 
+	END_IF
+	
+	Coutt := TvelP + TvelI;
+//	Limiter	
+
+	IF Coutt > 100*0.03578 THEN
+    	Coutt := 100*0.03578; // Maximaler Ausgangswert begrenzen
+	ELSIF Coutt < -100*0.03578 THEN
+    	Coutt := -100*0.03578; // Minimaler Ausgangswert begrenzen
+	END_IF
+
+//Berechnung soll Velo
+	Sollvelo.x := Coutx;
+	Sollvelo.y := Couty;
+	Sollvelo.theta := Coutt;
+	
+// Neue Soll Pose 	
+	IF Xe < 3 AND Xe > -3 AND Ye > -2 AND Ye <2 AND te < 0.025 AND te > -0.025 THEN
+		Sollvelo.x :=0;
+		Sollvelo.y := 0;
+		Sollvelo.theta := 0;
+		timer.IN := 1;
+	ELSE
+		timer.IN:= 0;
+	END_IF
+ 
+	IF timer.Q THEN 
+			timer.IN:=0;
+			Main.updateSollPose();
+	END_IF;	
+	timer();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Fahrstufe3" Id="{dc96127a-2f1f-4254-808a-69adc06b78e4}">
+      <Declaration><![CDATA[METHOD Fahrstufe3 : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	
+	sollPos : RobotPose; 
+	istPos : RobotPose;
+
+	streckeX: LREAL;
+	streckeY: LREAL;
+	streckeTheta: LREAL;
+	vX: LREAL;
+	vY: LREAL;
+	vTheta: LREAL;
+	Xe: LREAL;
+	Ye: LREAL;
+	te: LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Get soll- and istPose 
+
+sollPos := Main.getSollPose();
+istPos := Main.getIstPose(); // Sollte Bereinigt sein 
+
+
+
+// Trasformation in Roboter Koordinaten
+
+streckeX := sollPos.x*COS(istPos.theta) - istPos.x*COS(istPos.theta) - istPos.y*SIN(istPos.theta) + sollPos.y*SIN(istPos.theta);
+streckeY := sollPos.y*COS(istPos.theta) - istPos.y*COS(istPos.theta) + istPos.x*SIN(istPos.theta) - sollPos.x*SIN(istPos.theta);
+streckeTheta := Main.absToDynTheta(absolutThetaSoll:=sollPos.theta, absolutThetaIst := istPos.theta);
+
+// Berechnung der Geschwindigkeit und Normierung 
+
+vX := 100 * streckeX/(SQRT(streckeX*streckeX + streckeY*streckeY + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
+vY := 100 * streckeY/(SQRT(streckeX*streckeX + streckeY*streckeY + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
+vTheta := 100 * (StreckeTheta) /(SQRT(streckeX*streckeX + streckeY*streckeY + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
+
+// Regeldifferenz
+
+Xe := streckeX; 
+Ye := streckeY;
+te :=streckeTheta; 
+
+
+SollVelo.x := vX * 1.5;
+SollVelo.y := vY * 1.5;
+SollVelo.theta := vTheta * 1.5;
+
+
+
+
+IF Xe < 20 AND Xe > -20 AND Ye > -20 AND Ye <20 AND te < 0.5 AND te > -0.5 THEN
+	Main.updateSollPose();
+END_IF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Fahrstufe4" Id="{f9fa97e1-5277-4541-8506-6804d898de02}">
+      <Declaration><![CDATA[METHOD Fahrstufe4 : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	
+	sollPos : RobotPose; 
+	istPos : RobotPose;
+	newVel: RobotPose;
+	oldVel : RobotPose;
+
+	streckeX: LREAL ;
+	streckeY: LREAL;
+	streckeTheta: LREAL;
+	
+	vX: LREAL;
+	vY: LREAL;
+	vTheta: LREAL;
+	
+	Xe: LREAL;
+	Ye: LREAL;
+	te: LREAL;
+	u: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//Startup 
+IF u <> 1 THEN 
+	sollPos.x := 6888;
+	sollPos.y := 1344; 
+	sollPos.theta := 0; 
+END_IF
+
+
+// Get soll- and istPose 
+
+sollPos := Main.getSollPose();
+istPos := Main.getIstPose();
+
+
+
+// Trasformation in Roboter Koordinaten
+
+streckeX := sollPos.x*COS(istPos.theta) - istPos.x*COS(istPos.theta) - istPos.y*SIN(istPos.theta) + sollPos.y*SIN(istPos.theta);
+streckeY := sollPos.y*COS(istPos.theta) - istPos.y*COS(istPos.theta) + istPos.x*SIN(istPos.theta) - sollPos.x*SIN(istPos.theta);
+streckeTheta := Main.absToDynTheta(absolutThetaSoll:=sollPos.theta, absolutThetaIst := istPos.theta);
+
+
+// Berechnung der Geschwindigkeit und Normierung 
+
+vX := 100 * streckeX/(SQRT(streckex*streckex + streckey*streckey + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
+vY := 100 * streckeY/(SQRT(streckex*streckex + streckey*streckey + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
+vTheta := 100 * streckeTheta/(SQRT(streckex*streckex + streckey*streckey + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
+
+// Regeldifferenz
+
+Xe := streckeX; 
+Ye := streckeY;
+te := streckeTheta; 
+
+SollVelo.x := vX * 3;
+SollVelo.y := vY * 3;
+SollVelo.theta := vTheta * 3;
+
+
+
+IF Xe < 30 AND Xe > -30 AND Ye > -30 AND Ye <30 AND te < 1 AND te > -1 THEN
+	Main.updateSollPose();
+END_IF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Fahrstufe5" Id="{39aa5bf9-9dce-4c73-8173-ae122b0d141c}">
+      <Declaration><![CDATA[METHOD Fahrstufe5 : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	connected : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[connected := Main.getStationIstConnected();
+
+//Robo fährt in Tasche Rein
+SollVelo.x := 30;
+SollVelo.y := 65;
+SollVelo.theta := 0;
+		
+IF connected THEN
+	SollVelo.x := 0;
+	SollVelo.y := 0;
+	SollVelo.theta := 0;
+		
+	nextSollPose := 1;	
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Fahrstufe6" Id="{f54ef6b7-5e53-407d-82c7-68ba79e6d4f5}">
+      <Declaration><![CDATA[METHOD Fahrstufe6 : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	
+	sollPos : RobotPose; 
+	istPos : RobotPose;
+
+	streckeX: LREAL;
+	streckeY: LREAL;
+	streckeTheta: LREAL;
+	vX: LREAL;
+	vY: LREAL;
+	vTheta: LREAL;
+	Xe: LREAL;
+	Ye: LREAL;
+	te: LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Get soll- and istPose 
+
+sollPos := Main.getSollPose();
+istPos := Main.getIstPose(); // Sollte Bereinigt sein 
+
+
+
+// Trasformation in Roboter Koordinaten
+
+streckeX := sollPos.x*COS(istPos.theta) - istPos.x*COS(istPos.theta) - istPos.y*SIN(istPos.theta) + sollPos.y*SIN(istPos.theta);
+streckeY := sollPos.y*COS(istPos.theta) - istPos.y*COS(istPos.theta) + istPos.x*SIN(istPos.theta) - sollPos.x*SIN(istPos.theta);
+streckeTheta := Main.absToDynTheta(absolutThetaSoll:=sollPos.theta, absolutThetaIst := istPos.theta);
+
+// Berechnung der Geschwindigkeit und Normierung 
+
+vX := 100 * streckeX/(SQRT(streckeX*streckeX + streckeY*streckeY + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
+vY := 100 * streckeY/(SQRT(streckeX*streckeX + streckeY*streckeY + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
+vTheta := 100 * (StreckeTheta) /(SQRT(streckeX*streckeX + streckeY*streckeY + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
+
+// Regeldifferenz
+
+Xe := streckeX; 
+Ye := streckeY;
+te :=streckeTheta; 
+
+
+SollVelo.x := vX * 1.5;
+SollVelo.y := vY * 1.5;
+SollVelo.theta := vTheta * 1.5;
+
+
+
+
+IF Xe < 20 AND Xe > -20 AND Ye > -20 AND Ye <20 AND te < 0.5 AND te > -0.5 THEN
+	Main.updateSollPose();
+END_IF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Trapezprofil" Id="{68cb549e-b533-4d7b-a5c6-d8ba8b23df74}">
+      <Declaration><![CDATA[METHOD Trapezprofil : Robotpose
+VAR_INPUT
+	Sollvelo : robotpose; 
+END_VAR
+VAR
+	
+	sollveloneu:RobotPose; 
+
+	
+	Schwellwert: LREAL := 20; 
+	dTime : LREAL := 0.001;
+	
+
+
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF startup THEN
+sollveloalt := sollvelo; 
+startup := FALSE;
+END_IF
+
+
+//IF i = 2 THEN
+et.x := sollvelo.x - sollveloalt.x;
+et.y := sollvelo.y - sollveloalt.y;
+et.theta := sollvelo.theta - sollveloalt.theta; 
+
+IF ABS(et.x) > 30 AND (Sollpose.m = 3 OR sollpose.m = 4) THEN
+	sollvelotrapez.x := sollvelotrapez.x + ((et.x/ABS(et.x))*3200*dTime) ; 
+ELSE 
+	Sollvelotrapez.x := sollvelo.x	;
+END_IF
+
+IF ABS(et.y) > 30 AND (Sollpose.m = 3 OR sollpose.m = 4) THEN
+	sollvelotrapez.y := sollvelotrapez.y + ((et.y/ABS(et.y))*3200*dTime) ; 
+ELSE 
+	Sollvelotrapez.y := sollvelo.y	;	
+END_IF
+
+IF ABS(et.theta) > 30*0.03 AND (Sollpose.m = 3 OR sollpose.m = 4) THEN
+	sollvelotrapez.theta := sollvelotrapez.theta + ((et.theta/ABS(et.theta))*3200*dTime*0.03) ;
+ELSE 
+	Sollvelotrapez.Theta := sollvelo.theta	; 	
+END_IF
+
+sollveloalt := sollvelotrapez;
+//i := 0;
+//ELSE 
+//	i := 1+i; 
+//END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="Lageregler">
+      <LineId Id="3" Count="15" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="19" Count="4" />
+      <LineId Id="25" Count="13" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Lageregler.Fahrstufe0">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Lageregler.Fahrstufe1">
+      <LineId Id="3" Count="70" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Lageregler.Fahrstufe2">
+      <LineId Id="3" Count="93" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Lageregler.Fahrstufe3">
+      <LineId Id="3" Count="34" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Lageregler.Fahrstufe4">
+      <LineId Id="3" Count="37" />
+      <LineId Id="60" Count="3" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Lageregler.Fahrstufe5">
+      <LineId Id="23" Count="12" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Lageregler.Fahrstufe6">
+      <LineId Id="22" Count="34" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="Lageregler.Trapezprofil">
+      <LineId Id="3" Count="32" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

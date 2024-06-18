@@ -1,0 +1,237 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="SoC_Calc" Id="{12f503c5-a923-441c-b6b0-d74b0861a781}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK SoC_Calc
+
+VAR_INPUT
+	BatterieVoltage : INT;         //DigitalWert Voltage
+	BatterieCurrent AT %I*: INT;   //DigitalWert Current
+	Voltage : REAL;            //Aktuelle Zellenspannung
+	Current : REAL;            //Aktuelle Batteriestrom	
+END_VAR
+
+VAR_OUTPUT
+	SOC_stat : REAL;        //State of Charge
+	StartCharging : BOOL;   //Ladeanfang
+	StopCharging : BOOL;    //Stoppen des Ladens
+END_VAR
+
+VAR
+	Area : UINT;						// Bereiche auf VDC = f(SoC) - Kennlinie (A = 1; B = 2; C = 3; D = 4)
+	I_off :REAL:= 1.53 ;                //Offline Strömwert 
+	Capacity :REAL := 72.8 ;            //Nennkapazität der Batterie
+	treInitialSoC : REAL:= 0.5;         //SoC beim Start
+	
+	// Voltage Targets
+	TargetVoltage0 : REAL;   //Spannungswert bei 0% Akku
+	TargetVoltage1 : REAL;   //Charging Spannung im Bereich 1 (0% - 20%)
+	TargetVoltage2 : REAL;   //Charging Spannung im Bereich 2 (20% - 80%)
+	TargetVoltage3 : REAL;   //Charging Spannung im Bereich 3 (80% - 90%)
+	TargetVoltage4 : REAL;   //Spannungswert bei 100% Akku 
+	boV: BOOL := TRUE;
+	lookUpTimerSOC : TON;    //Timer für die Durchführung einer SOC-Berechnung mithilfe einer LookUpTable
+	startTimer : BOOL := TRUE;
+	drivingModeConstantZero : BOOL := TRUE;  // Überwacht, ob DrivingMode während der Timerlaufzeit 0 bleibt
+	timerDuration : TIME;
+END_VAR
+
+
+VAR CONSTANT
+	CurrentKoeff : REAL := 0.01;  //Zeitkoeffizient nach Zeitzyklus vom Camerasystem [10ms=0.01s]
+	
+	//Bereich Definition
+	ar_A : UINT := 1;
+	ar_B : UINT := 2;
+	ar_C : UINT := 3;
+	ar_D : UINT := 4; 
+	
+	// Charging curve
+	TargetVoltage0_charge : REAL := 14.20;    //Spannungswert bei 0% Akku
+	TargetVoltage1_charge : REAL := 15.20 ;   //Charging Spannung im Bereich 1 (0% - 20%)
+	TargetVoltage2_charge : REAL := 16.15 ;   //Charging Spannung im Bereich 2 (20% - 80%)
+	TargetVoltage3_charge : REAL := 16.50 ;   //Charging Spannung im Bereich 3 (80% - 90%)
+	TargetVoltage4_charge : REAL := 16.60;    //Spannungswert bei 100% Akku
+	
+    // discharging curve
+	TargetVoltage0_discharge : REAL:= 13.80 ;     //Spannungswert bei 0% Akku
+	TargetVoltage1_discharge : REAL:= 14.0 ;     //Dicharching Spannung im Bereich 1 (0% - 20%)
+	TargetVoltage2_discharge : REAL:= 15.20 ;     //Dicharching Spannung im Bereich 2 (20% - 80%)
+	TargetVoltage3_discharge : REAL:= 15.3 ;     //Dicharching Spannung im Bereich 3 (80% - 90%)
+	TargetVoltage4_discharge : REAL:= 15.50 ;     //Spannungswert bei 100% Akku
+	
+END_VAR
+
+
+VAR_STAT	
+	VDC_old : REAL;
+	Current_old : REAL;
+	Charg_not_discharge : BOOL := FALSE;      //Charging oder Dicharging entscheidendes Bit
+	_boInit : BOOL := FALSE;
+	LadeCurve : BOOL := FALSE ;
+	EntladeCurve :BOOL := TRUE ;
+	oldMotorX :BOOL := TRUE;
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[//Skalirung 
+BatterieVoltage := PowerManager.batteryVoltageRaw ;         //Battery voltage  (EL3104 - Ch. 3) linked with PowerManager
+BatterieCurrent := PowerManager.supplyCurrentRaw ;          // Battery Current (EL3104 - Ch. 2) linked with IrDistanceSensors 
+// Hier wird die digitalen Werte in scaled Values umgerechent
+Voltage := (10.0 / 32768) * BatterieVoltage * 2;                  //scaled value of voltage [V]
+Current := -(10.0 / 32768) * (BatterieCurrent / 270 * 1000);       //scaled value of current [A]
+
+
+// Ermittlung Lade/Entladevorgang
+IF Current > 0 THEN
+TargetVoltage0 := TargetVoltage0_Charge;
+TargetVoltage1 := TargetVoltage1_Charge;
+TargetVoltage2 := TargetVoltage2_Charge;
+TargetVoltage3 := TargetVoltage3_Charge;
+TargetVoltage4 := TargetVoltage4_Charge;
+Charg_not_discharge := TRUE;
+ELSE
+TargetVoltage0 := TargetVoltage0_Discharge;
+TargetVoltage1 := TargetVoltage1_Discharge;
+TargetVoltage2 := TargetVoltage2_Discharge;
+TargetVoltage3 := TargetVoltage3_Discharge;
+TargetVoltage4 := TargetVoltage4_Discharge;
+Charg_not_discharge := FALSE;
+END_IF;
+
+// Initial SoC-Berechnung
+// Charging
+IF (Charg_not_discharge) THEN
+	timerDuration := T#60S;
+	// 0% SoC
+	IF Voltage < TargetVoltage0_charge THEN
+		treInitialSoC := 0;
+	// 0%-20% SoC
+	ELSIF Voltage < TargetVoltage1_charge THEN
+		treInitialSoC := (0.2 * (Voltage - TargetVoltage0) / (TargetVoltage1 - TargetVoltage0));
+	// 20%-80% SoC
+	ELSIF Voltage < TargetVoltage2_charge THEN
+		treInitialSoC := (0.6 * (Voltage - TargetVoltage1) / (TargetVoltage2 - TargetVoltage1)) + 0.2;
+	// 80%-90% SoC
+	ELSIF Voltage < TargetVoltage3_charge THEN
+		treInitialSoC := (0.1 * (Voltage - TargetVoltage2) / (TargetVoltage3 - TargetVoltage2)) + 0.8;
+	// 90%-100% SoC
+	ELSIF Voltage < TargetVoltage4_charge THEN
+		treInitialSoC := (0.1 * (Voltage - TargetVoltage3) / (TargetVoltage4 - TargetVoltage3)) + 0.9;
+	ELSE
+		treInitialSoC :=  1;
+	END_IF
+// Discharging
+ELSE
+	timerDuration := T#10S;
+	// 0% SoC
+	IF Voltage < TargetVoltage0_discharge THEN
+		treInitialSoC := 0;
+	// 0%-20% SoC
+	ELSIF Voltage < TargetVoltage1_discharge THEN
+		treInitialSoC := (0.2 * (Voltage - TargetVoltage0) / (TargetVoltage1 - TargetVoltage0));
+	// 20%-80% SoC
+	ELSIF Voltage < TargetVoltage2_discharge THEN
+		treInitialSoC := (0.6 * (Voltage - TargetVoltage1) / (TargetVoltage2 - TargetVoltage1)) + 0.2;
+	// 80%-90% SoC
+	ELSIF Voltage < TargetVoltage3_discharge THEN
+		treInitialSoC := (0.1 * (Voltage - TargetVoltage2) / (TargetVoltage3 - TargetVoltage2)) + 0.8;
+	// 90%-100% SoC
+	ELSIF Voltage < TargetVoltage4_discharge THEN
+		treInitialSoC := (0.1 * (Voltage - TargetVoltage3) / (TargetVoltage4 - TargetVoltage3)) + 0.9;
+	ELSE
+		treInitialSoC :=  1;
+	END_IF
+END_IF
+
+// SoC-Berechnung (Coulomb counting)
+// Start Timer und Überprüfung auf DrivingMode = 0
+IF GV.statusRobot.DrivingMode = 0 THEN
+	IF NOT lookUpTimerSOC.IN THEN
+		// Timer starten, wenn er noch nicht läuft und DrivingMode = 0 ist
+		startTimer := TRUE;
+		drivingModeConstantZero := TRUE; // Rücksetzen, wenn Timer neu gestartet wird
+	ELSE
+		// Prüfen, ob während der Timer läuft, der DrivingMode konstant bei 0 bleibt
+		drivingModeConstantZero := drivingModeConstantZero AND (GV.statusRobot.DrivingMode = 0);
+	END_IF
+ELSE
+	drivingModeConstantZero := FALSE;
+END_IF
+lookUpTimerSOC(IN:=startTimer, PT:=timerDuration); // Timer wird gesteuert
+
+IF Charg_not_discharge AND SOC_stat < 100 THEN
+	// Coulomb Counting kontinuierlich ausführen
+	SOC_stat := SOC_stat + (Current - I_off) * CurrentKoeff  / (Capacity * 3600);
+ELSIF NOT Charg_not_discharge AND SOC_stat > 0 THEN
+	// Coulomb Counting kontinuierlich ausführen
+	SOC_stat := SOC_stat + (Current - I_off) * CurrentKoeff  / (Capacity * 3600);
+END_IF
+
+// Update SOC with lookup-table when init flag is FALSE and drivingModeConstantZero is TRUE
+IF NOT _boInit AND drivingModeConstantZero AND lookUpTimerSOC.Q THEN
+	SOC_stat := treInitialSoC;
+	_boInit := TRUE; // Set init flag to prevent multiple updates during the timer period
+END_IF
+
+// Reset Timer und Reset des Initialisierungsflags
+IF lookUpTimerSOC.Q THEN
+	_boInit := FALSE;
+	startTimer := FALSE;
+	drivingModeConstantZero := TRUE; // Zurücksetzen, bereit für den nächsten Zyklus
+END_IF
+
+GV.strGlobalSoC := LREAL_TO_FMTSTR(SoC_stat*100, 2, TRUE);
+]]></ST>
+    </Implementation>
+    <LineIds Name="SoC_Calc">
+      <LineId Id="10" Count="4" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="122" Count="0" />
+      <LineId Id="1330" Count="0" />
+      <LineId Id="1908" Count="1" />
+      <LineId Id="1911" Count="4" />
+      <LineId Id="2269" Count="0" />
+      <LineId Id="1916" Count="5" />
+      <LineId Id="2270" Count="0" />
+      <LineId Id="821" Count="0" />
+      <LineId Id="2228" Count="0" />
+      <LineId Id="1176" Count="0" />
+      <LineId Id="2229" Count="0" />
+      <LineId Id="2218" Count="0" />
+      <LineId Id="2942" Count="0" />
+      <LineId Id="2233" Count="0" />
+      <LineId Id="2220" Count="0" />
+      <LineId Id="2222" Count="0" />
+      <LineId Id="2234" Count="0" />
+      <LineId Id="2224" Count="2" />
+      <LineId Id="2237" Count="0" />
+      <LineId Id="2227" Count="0" />
+      <LineId Id="2241" Count="1" />
+      <LineId Id="2239" Count="0" />
+      <LineId Id="2243" Count="2" />
+      <LineId Id="2247" Count="1" />
+      <LineId Id="2223" Count="0" />
+      <LineId Id="2232" Count="0" />
+      <LineId Id="2231" Count="0" />
+      <LineId Id="2943" Count="0" />
+      <LineId Id="2249" Count="16" />
+      <LineId Id="2246" Count="0" />
+      <LineId Id="2221" Count="0" />
+      <LineId Id="2743" Count="0" />
+      <LineId Id="2036" Count="0" />
+      <LineId Id="2811" Count="12" />
+      <LineId Id="2825" Count="0" />
+      <LineId Id="2934" Count="0" />
+      <LineId Id="2826" Count="0" />
+      <LineId Id="2935" Count="0" />
+      <LineId Id="2937" Count="3" />
+      <LineId Id="2936" Count="0" />
+      <LineId Id="2829" Count="2" />
+      <LineId Id="2927" Count="0" />
+      <LineId Id="2926" Count="0" />
+      <LineId Id="2834" Count="9" />
+      <LineId Id="2415" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

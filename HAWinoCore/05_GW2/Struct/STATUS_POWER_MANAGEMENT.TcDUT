@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <DUT Name="STATUS_POWER_MANAGEMENT" Id="{493a8fd2-fd11-4cb5-84fc-3180379e7f0c}">
+    <Declaration><![CDATA[TYPE STATUS_POWER_MANAGEMENT :
+STRUCT
+	IsConnected : BOOL;
+	IsCharging : BOOL;
+	IsChargingCompleted : BOOL;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

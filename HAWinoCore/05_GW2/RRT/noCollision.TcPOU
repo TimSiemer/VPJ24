@@ -1,0 +1,158 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="noCollision" Id="{bc196b00-6c3d-4c5a-a01d-d30a2d85eca3}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION noCollision : LREAL
+VAR_INPUT
+	n2: ARRAY[0..1] OF LREAL;
+	n1: ARRAY[0..1] OF LREAL;
+	o: ARRAY[0..3] OF LREAL;
+END_VAR
+VAR
+	ints1: BOOL;
+	ints2: BOOL;
+	ints3: BOOL;
+	ints4: BOOL;
+	obs_idx_2: LREAL;
+	obs_idx_3: LREAL;
+	tmp: LREAL;
+	temp1: LREAL;
+	temp2: LREAL;
+	temp3: LREAL;
+	temp4: LREAL;
+	temp5: LREAL;
+	temp6: LREAL;
+	temp7: LREAL;
+	temp8: LREAL;
+	temp9: LREAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+(* 'noCollision:2' A = [n1(1) n1(2)]; *)
+(* 'noCollision:3' B = [n2(1) n2(2)]; *)
+(* 'noCollision:4' obs = [o(1) o(2) o(1)+o(3) o(2)+o(4)]; *)
+obs_idx_2 := o[0] + o[2];
+obs_idx_3 := o[1] + o[3];
+(* 'noCollision:6' C1 = [obs(1),obs(2)]; *)
+(* 'noCollision:7' D1 = [obs(1),obs(4)]; *)
+(* 'noCollision:8' C2 = [obs(1),obs(2)]; *)
+(* 'noCollision:9' D2 = [obs(3),obs(2)]; *)
+(* 'noCollision:10' C3 = [obs(3),obs(4)]; *)
+(* 'noCollision:11' D3 = [obs(3),obs(2)]; *)
+(* 'noCollision:12' C4 = [obs(3),obs(4)]; *)
+(* 'noCollision:13' D4 = [obs(1),obs(4)]; *)
+(* Check if path from n1 to n2 intersects any of the four edges of the *)
+(* obstacle *)
+(* 'noCollision:18' ints1 = ccw(A,C1,D1) ~= ccw(B,C1,D1) && ccw(A,B,C1) ~= ccw(A,B,D1); *)
+(* 'ccw:2' val = (C(2)-A(2)) * (B(1)-A(1)) > (B(2)-A(2)) * (C(1)-A(1)); *)
+(* 'ccw:2' val = (C(2)-A(2)) * (B(1)-A(1)) > (B(2)-A(2)) * (C(1)-A(1)); *)
+tmp := o[0] - n1[0];
+temp1 := o[0] - n2[0];
+temp2 := o[1] - n1[1];
+temp3 := obs_idx_3 - n1[1];
+temp5 := temp2 * tmp;
+temp6 := o[1] - n2[1];
+temp7 := temp6 * temp1;
+temp8 := obs_idx_3 - n2[1];
+temp9 := temp3 * tmp;
+temp1 := temp8 * temp1;
+
+IF (temp9 > temp5) <> (temp1 > temp7) THEN 
+    (* 'ccw:2' val = (C(2)-A(2)) * (B(1)-A(1)) > (B(2)-A(2)) * (C(1)-A(1)); *)
+    (* 'ccw:2' val = (C(2)-A(2)) * (B(1)-A(1)) > (B(2)-A(2)) * (C(1)-A(1)); *)
+    temp4 := n2[0] - n1[0];
+    tmp := (n2[1] - n1[1]) * tmp;
+
+    IF ((temp2 * temp4) > tmp) <> ((temp3 * temp4) > tmp) THEN 
+        ints1 := TRUE;
+    ELSE 
+        ints1 := FALSE;
+    END_IF;
+
+ELSE 
+    ints1 := FALSE;
+END_IF;
+
+(* 'noCollision:19' ints2 = ccw(A,C2,D2) ~= ccw(B,C2,D2) && ccw(A,B,C2) ~= ccw(A,B,D2); *)
+(* 'ccw:2' val = (C(2)-A(2)) * (B(1)-A(1)) > (B(2)-A(2)) * (C(1)-A(1)); *)
+(* 'ccw:2' val = (C(2)-A(2)) * (B(1)-A(1)) > (B(2)-A(2)) * (C(1)-A(1)); *)
+tmp := obs_idx_2 - n1[0];
+temp2 := temp2 * tmp;
+temp4 := obs_idx_2 - n2[0];
+temp6 := temp6 * temp4;
+
+IF (temp5 > temp2) <> (temp7 > temp6) THEN 
+    (* 'ccw:2' val = (C(2)-A(2)) * (B(1)-A(1)) > (B(2)-A(2)) * (C(1)-A(1)); *)
+    (* 'ccw:2' val = (C(2)-A(2)) * (B(1)-A(1)) > (B(2)-A(2)) * (C(1)-A(1)); *)
+    temp5 := (o[1] - n1[1]) * (n2[0] - n1[0]);
+
+    IF (temp5 > ((n2[1] - n1[1]) * (o[0] - n1[0]))) <> (temp5 > ((n2[1] - n1[1]) * tmp)) THEN 
+        ints2 := TRUE;
+    ELSE 
+        ints2 := FALSE;
+    END_IF;
+
+ELSE 
+    ints2 := FALSE;
+END_IF;
+
+(* 'noCollision:20' ints3 = ccw(A,C3,D3) ~= ccw(B,C3,D3) && ccw(A,B,C3) ~= ccw(A,B,D3); *)
+(* 'ccw:2' val = (C(2)-A(2)) * (B(1)-A(1)) > (B(2)-A(2)) * (C(1)-A(1)); *)
+(* 'ccw:2' val = (C(2)-A(2)) * (B(1)-A(1)) > (B(2)-A(2)) * (C(1)-A(1)); *)
+tmp := temp3 * tmp;
+temp3 := temp8 * temp4;
+
+IF (temp2 > tmp) <> (temp6 > temp3) THEN 
+    (* 'ccw:2' val = (C(2)-A(2)) * (B(1)-A(1)) > (B(2)-A(2)) * (C(1)-A(1)); *)
+    (* 'ccw:2' val = (C(2)-A(2)) * (B(1)-A(1)) > (B(2)-A(2)) * (C(1)-A(1)); *)
+    temp2 := (n2[1] - n1[1]) * (obs_idx_2 - n1[0]);
+
+    IF (((obs_idx_3 - n1[1]) * (n2[0] - n1[0])) > temp2) <> (((o[1] - n1[1]) * (n2[0] - n1[0])) > temp2) THEN 
+        ints3 := TRUE;
+    ELSE 
+        ints3 := FALSE;
+    END_IF;
+
+ELSE 
+    ints3 := FALSE;
+END_IF;
+
+(* 'noCollision:21' ints4 = ccw(A,C4,D4) ~= ccw(B,C4,D4) && ccw(A,B,C4) ~= ccw(A,B,D4); *)
+(* 'ccw:2' val = (C(2)-A(2)) * (B(1)-A(1)) > (B(2)-A(2)) * (C(1)-A(1)); *)
+(* 'ccw:2' val = (C(2)-A(2)) * (B(1)-A(1)) > (B(2)-A(2)) * (C(1)-A(1)); *)
+
+IF (tmp > temp9) <> (temp3 > temp1) THEN 
+    (* 'ccw:2' val = (C(2)-A(2)) * (B(1)-A(1)) > (B(2)-A(2)) * (C(1)-A(1)); *)
+    (* 'ccw:2' val = (C(2)-A(2)) * (B(1)-A(1)) > (B(2)-A(2)) * (C(1)-A(1)); *)
+    tmp := (obs_idx_3 - n1[1]) * (n2[0] - n1[0]);
+
+    IF (tmp > ((n2[1] - n1[1]) * (obs_idx_2 - n1[0]))) <> (tmp > ((n2[1] - n1[1]) * (o[0] - n1[0]))) THEN 
+        ints4 := TRUE;
+    ELSE 
+        ints4 := FALSE;
+    END_IF;
+
+ELSE 
+    ints4 := FALSE;
+END_IF;
+
+(* 'noCollision:22' if ints1==0 && ints2==0 && ints3==0 && ints4==0 *)
+
+IF ((( NOT ints1) AND ( NOT ints2)) AND ( NOT ints3)) AND ( NOT ints4) THEN 
+    (* 'noCollision:23' nc = 1; *)
+    noCollision := 1.0;
+ELSE 
+    (* 'noCollision:24' else *)
+    (* 'noCollision:25' nc = 0; *)
+    noCollision := 0.0;
+END_IF;
+
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="noCollision">
+      <LineId Id="3" Count="120" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

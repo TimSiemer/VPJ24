@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="Bumper" Id="{6efbcee7-f5ea-42a6-97fd-2cdfadcc5d33}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM Bumper
+VAR
+	BumperStatus		AT%I* : BOOL;
+	
+	Timer:TOF;
+	Timer_Time: TIME := T#5000MS;	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Timer.PT:= Timer_Time;
+Timer.IN := BumperStatus;
+
+IF Timer.Q THEN 
+	Main.SetBumperaktiv(TRUE);
+ELSE
+	Main.SetBumperaktiv(FALSE);
+END_IF
+Timer();]]></ST>
+    </Implementation>
+    <LineIds Name="Bumper">
+      <LineId Id="3" Count="3" />
+      <LineId Id="8" Count="3" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

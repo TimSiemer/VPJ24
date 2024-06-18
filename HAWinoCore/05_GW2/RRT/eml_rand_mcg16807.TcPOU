@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="eml_rand_mcg16807" Id="{0f0caaee-00bd-4998-a82d-7a95dd8ef0df}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK eml_rand_mcg16807
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+	b_r: LREAL;
+END_VAR
+VAR_IN_OUT
+	state: UDINT;
+END_VAR
+VAR
+	hi: DINT;
+	a: UDINT;
+	b: UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+hi := UDINT_TO_DINT(state / 127773);
+a := (state - (DINT_TO_UDINT(hi) * 127773)) * 16807;
+b := 2836 * DINT_TO_UDINT(hi);
+
+IF a < b THEN 
+    a := DWORD_TO_UDINT(( NOT UDINT_TO_DWORD(b - a)) AND 2147483647);
+ELSE 
+    a := a - b;
+END_IF;
+
+b_r := UDINT_TO_LREAL(a) * 4.6566128752457969E-10;
+state := a;
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="eml_rand_mcg16807">
+      <LineId Id="3" Count="13" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

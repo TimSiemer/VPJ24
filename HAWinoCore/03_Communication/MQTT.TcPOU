@@ -1,0 +1,708 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="MQTT" Id="{3b364ef0-24c5-4b55-9f63-1e0f62f8b4d0}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MQTT
+VAR
+
+// Identifikation des Roboters
+    //Robot_Number	AT%I*	: INT;	
+
+
+// Local Variables for Mqtt Client handling
+	fbIotMqttClient : FB_IotMqttClient;
+	//ClientId : STRING(255);
+    //ClientId : STRING(255) := CONCAT('HAWino_', INT_TO_STRING(.Var_HAWIno.Robot_Number));
+	bSetParameter 	: BOOL := TRUE;
+	bConnect 		: BOOL := TRUE;	
+	
+// Publish message
+	initMQTT : BOOL := FALSE;
+	sTopicPubToPowerMgmt : STRING(255); //:= CONCAT('Robots/PowerMgmt/Robot_', INT_TO_STRING(.Var_HAWIno.Robot_Number)); 	// ToDo: Bisher ist die Nummer des HAWino fest kodiert
+	sTopicPubToPowerMgmt_SOC : STRING(255);// := CONCAT('Robots/PowerMgmt/SoC_Robot_', INT_TO_STRING(.Var_HAWIno.Robot_Number)); 
+	sPayloadPub : STRING(2000);	
+	fbTimerPub 	: TON := (PT:=T#500MS);									// Intervall für das Senden des Akku-Status
+	
+//Received message
+	bSubscribed    : BOOL;
+	sTopicSubToPowerMgmt : STRING(255);// := CONCAT('PowerMgmt/Robots/Robot_', INT_TO_STRING(.Var_HAWIno.Robot_Number));	// ToDo: Bisher ist die Nummer des HAWino fest kodiert
+	sTopicRcv      : STRING(255);
+	sPayloadRcv    : STRING(255);
+	fbMessageQueue : FB_IotMqttMessageQueue;
+    fbMessage      : FB_IotMqttMessage;
+	hrErrorOccurred : HRESULT; 			// Enthlt dern letzten augetretenen Fehler
+	
+// Variables for JSON
+	fbJson			: FB_JsonSaxWriter;
+	fbJsonDataType 	: FB_JsonReadWriteDataType;
+	sJsonDoc       	: STRING(2000); 
+	
+// Local Variables for TwinCAT IoT Communication (TF6701) with direct link to EK1200 and TcCom
+	//stMqtt_HAWino_In	AT%I*	: ST_PwrMgmt_HAWino_In;		// Attention! Don't link TIME Variables, otherwise we get an error!
+	//stMqtt_HAWino_Out	AT%Q*	: ST_PwrMgmt_HAWino_Out;
+	
+	stMqtt_HAWino_In	 AT%I*: ST_PwrMgmt_HAWino_In;		// Attention! Don't link TIME Variables, otherwise we get an error!
+	stMqtt_HAWino_Out	 AT%Q*: ST_PwrMgmt_HAWino_Out;
+	
+	SOC_Out : STRING(255);
+	nBatteryTemperature	AT%I*	: INT;
+	
+	bComCheckAnswer	AT%Q*	: BOOL;
+	
+	stMqtt_HAWinoValues	: ST_PwrMgmt_HAWino;
+	
+	
+// Timer to create a time stamp
+	fbTimerTimestamp : TON := (PT:=T#71582M47S295MS);
+	
+// Local Vaiables to evaluate and act to input
+	fbComCheckFlag	: RS;
+	
+	
+	
+	sTopicSubToFleetMgmt: STRING;
+	Reset1: BOOL;
+	//Input synccheck. robotdata has been read and can be used.
+	txtReadInit AT%I* : BOOL := FALSE;
+	
+	///////////////////////Login Parameter///////////////////////////////////
+	
+	User : STRING := 'VPJ';
+	Password : STRING := 'R462';
+	IPAdress : STRING := '192.168.0.11';
+	HostPort : UINT := 1883;
+	sTopicPubRobotStatus: STRING(255);
+	sTopicPubRobotPose: STRING(255);
+	sPayloadRcvStatusFleetMgnt: STRING(INT#84);
+	sLastPayloadRcvStatusFleetMgnt: STRING(INT#84) := '[0,0],"Logged":false,"Unlogging":false,"Wait":false}                   ';
+	sTopicPubRobotPathAllocation : STRING(255);
+	
+	sTopicSubToStatusPathAllocationRobo_1: STRING;
+	sTopicSubToStatusPathAllocationRobo_2: STRING;
+	sTopicSubToStatusPathAllocationRobo_3: STRING;
+	sTopicSubToStatusPathAllocationRobo_4: STRING;
+	
+	sPayloadRcvStatusPathAllocationRobo_1 : STRING(255);
+	sPayloadRcvStatusPathAllocationRobo_2 : STRING(255);
+	sPayloadRcvStatusPathAllocationRobo_3 : STRING(255);
+	sPayloadRcvStatusPathAllocationRobo_4 : STRING(255);
+	
+	sTopicSubToIstPoseRobo_1: STRING;
+	sTopicSubToIstPoseRobo_2: STRING;
+	sTopicSubToIstPoseRobo_3: STRING;
+	sTopicSubToIstPoseRobo_4: STRING;
+	
+	sPayloadRcvIstPoseRobo_1 : STRING(255);
+	sPayloadRcvIstPoseRobo_2 : STRING(255);
+	sPayloadRcvIstPoseRobo_3 : STRING(255);
+	sPayloadRcvIstPoseRobo_4 : STRING(255);
+	
+	bSubscribedFleetMgn_Robo : BOOL;
+	bSubscribedStatusPathAllocationRobo_1 :BOOL;
+	bSubscribedStatusPathAllocationRobo_2 :BOOL;
+	bSubscribedStatusPathAllocationRobo_3 :BOOL;
+	bSubscribedStatusPathAllocationRobo_4 :BOOL;
+	
+	bSubscribedIstPoseRobo_1 :BOOL;
+	bSubscribedIstPoseRobo_2 :BOOL;
+	bSubscribedIstPoseRobo_3 :BOOL;
+	bSubscribedIstPoseRobo_4 :BOOL;
+	
+	Init : BOOL := TRUE;
+	sTopicSubToPowerMgmtStat_1: STRING(255);
+	bSubscribedPowerMgmtStat_1: BOOL;
+	sPayloadRcvPowerMgmtStat_1 : STRING(84);
+	
+	sTopicSubToPowerMgmtStat_2: STRING(255);
+	bSubscribedPowerMgmtStat_2: BOOL;
+	sPayloadRcvPowerMgmtStat_2 : STRING(84);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[//Case machen! preop op
+
+IF txtReadInit THEN
+	IF NOT initMQTT THEN
+		sTopicPubToPowerMgmt  := CONCAT('Robots/PowerMgmt/Robot_', INT_TO_STRING(.Var_HAWIno.Robot_Number)); 	
+		sTopicPubToPowerMgmt_SOC  := CONCAT('Robots/PowerMgmt/SoC_Robot_', INT_TO_STRING(.Var_HAWIno.Robot_Number)); 
+		sTopicSubToPowerMgmt  := CONCAT('PowerMgmt/Robots/Robot_', INT_TO_STRING(.Var_HAWIno.Robot_Number));
+		
+		//////////////////// Define String for Topic ////////////////////
+		sTopicPubRobotStatus := CONCAT('Robots/Status/Robot_', INT_TO_STRING(.Var_HAWIno.Robot_Number)); 
+		sTopicPubRobotPose := CONCAT('Robots/Pose/Robot_', INT_TO_STRING(.Var_HAWIno.Robot_Number)); 
+		sTopicPubRobotPathAllocation := CONCAT('Robots/PathAllocation/Robot_', INT_TO_STRING(.Var_HAWIno.Robot_Number));
+		sTopicSubToFleetMgmt := CONCAT('Robot_', INT_TO_STRING(.Var_HAWIno.Robot_Number));
+		sTopicSubToFleetMgmt := CONCAT('FleetMgmt/', sTopicSubToFleetMgmt);
+	 
+		sTopicSubToStatusPathAllocationRobo_1 := 'Robots/PathAllocation/Robot_1';
+		sTopicSubToStatusPathAllocationRobo_2 := 'Robots/PathAllocation/Robot_2';
+		sTopicSubToStatusPathAllocationRobo_3 := 'Robots/PathAllocation/Robot_3';
+		sTopicSubToStatusPathAllocationRobo_4 := 'Robots/PathAllocation/Robot_4';
+		
+		sTopicSubToIstPoseRobo_1 := 'Robots/Pose/Robot_1';
+		sTopicSubToIstPoseRobo_2 := 'Robots/Pose/Robot_2';
+		sTopicSubToIstPoseRobo_3 := 'Robots/Pose/Robot_3';
+		sTopicSubToIstPoseRobo_4 := 'Robots/Pose/Robot_4';
+		
+		sTopicSubToPowerMgmtStat_1 := 'Charging/Stat1';
+		sTopicSubToPowerMgmtStat_2 := 'Charging/Stat2';
+		
+		
+		//////////////////// Define String for Topic ////////////////////
+		
+		initMQTT:= TRUE;
+	END_IF
+	
+	stMqtt_HAWinoValues.Output.nRobotNumber := .Var_HAWIno.Robot_Number;			// Anpassen für jeden HAWino
+	
+	fbTimerTimestamp(In:= NOT fbTimerTimestamp.Q, ET=>stMqtt_HAWinoValues.Output.tTimestamp);
+	
+	stMqtt_HAWinoValues.Output.fSoC := stMqtt_HAWino_In.fSoC;
+	
+	stMqtt_HAWinoValues.Output.fActualBatteryCurrent := stMqtt_HAWino_In.fActualBatteryCurrent;
+	stMqtt_HAWinoValues.Output.fActualBatteryVoltage := stMqtt_HAWino_In.fActualBatteryVoltage;
+	
+	//stMqtt_HAWinoValues.Output.fActualBatteryCurrent := stMqtt_HAWino_In.fActualBatteryCurrent;
+	//stMqtt_HAWinoValues.Output.fActualBatteryVoltage := stMqtt_HAWino_In.fActualBatteryVoltage;
+	
+	
+	
+	
+	// Skalierung der Temperaturwerte des Akkus
+	stMqtt_HAWinoValues.Output.fBatteryTemperature := FKT_Scale(Rohwert := nBatteryTemperature, 
+																	X1 := -500,
+																	X2 := 1500, 
+																	Y1 := -50,
+																	Y2 := 150);
+																	
+	// Ausgabe der erwarteten Laufzeit des Roboters
+	stMqtt_HAWinoValues.Output.nEstimatedRunningTime	:= LIMIT(0,stMqtt_HAWino_In.nEstimatedRunningTime,172800);		// Max. 48 Stunden sollen dargestellt werden
+	stMqtt_HAWinoValues.Output.nEstimatedChargingTime	:= LIMIT(0,stMqtt_HAWino_In.nEstimatedChargingTime,172800);		// Max. 48 Stunden sollen dargestellt werden
+	
+	
+	// Antworten auf den Kommunikationstest und des Ladetests
+	stMqtt_HAWinoValues.Output.bCheckCurrentDetected := stMqtt_HAWino_In.bCheckCurrentDetected;
+	stMqtt_HAWinoValues.Output.bComCheckAnswer := stMqtt_HAWino_In.bComCheckAnswer;
+	
+	//
+	// Setting the parameters for establishing the connection to the Mqtt Broker and initializing the connection.
+	//
+	IF bSetParameter THEN
+		fbIotMqttClient.sHostName := IPAdress;	// IP-Adresse des Servers
+		fbIotMqttClient.nHostPort := HostPort;
+		//fbIotMqttClient.sClientId := ClientId;
+		fbIotMqttClient.sClientId := CONCAT('Robot_', INT_TO_STRING(.Var_HAWIno.Robot_Number));
+		fbIotMqttClient.sTopicPrefix := '';
+		//fbIotMqttClient.nKeepAlive:= 60; 
+		fbIotMqttClient.sUserName:= User;
+		fbIotMqttClient.sUserPassword:= Password;
+		//fbIotMqttClient.stWill:= ; 
+		//fbIotMqttClient.stTLS:= ;
+		fbIotMqttClient.ipMessageQueue := fbMessageQueue;
+	
+		bSetParameter := FALSE;
+	END_IF
+	
+	
+	//
+	// This method -> MUST BE CALLED CYCLICALLY <- to ensure background communication with the MQTT broker.
+	//
+	fbIotMqttClient.Execute(bConnect);
+	
+	IF fbIotMqttClient.bError THEN
+		// ToDo: add error logging here
+		hrErrorOccurred := fbIotMqttClient.hrErrorCode;
+	END_IF
+	
+		
+	IF fbIotMqttClient.bConnected THEN		// Kontrolle, ob der Broker verbunden ist
+		IF NOT bSubscribed THEN
+			//
+			// Abbonieren der Toopics, welche vom PowerMgmt kommen
+			//
+			bSubscribed := fbIotMqttClient.Subscribe(sTopic:=sTopicSubToPowerMgmt, eQoS:=TcIotMqttQos.AtMostOnceDelivery);
+			IF fbIotMqttClient.bError THEN
+				// ToDo: add my error logging here
+				hrErrorOccurred := fbIotMqttClient.hrErrorCode;
+			END_IF
+			
+			//
+			// Abbonieren der Toopics, welche vom Gewerk 1 kommen
+			//
+			
+			//bSubscribed := fbIotMqttClient.Subscribe(sTopic:=sTopicSubToFleetMgmt, eQoS:=TcIotMqttQos.AtMostOnceDelivery);
+			//IF fbIotMqttClient.bError THEN
+				// ToDo: add my error logging here
+			//	hrErrorOccurred := fbIotMqttClient.hrErrorCode;
+			//END_IF
+			
+		END_IF
+		//////////////////////////////// Sub FleetMgnt Topic ///////////////////////////////
+		IF NOT bSubscribedFleetMgn_Robo THEN
+			bSubscribedFleetMgn_Robo := fbIotMqttClient.Subscribe(sTopic:=sTopicSubToFleetMgmt, eQoS:=TcIotMqttQos.AtMostOnceDelivery);
+			
+			IF fbIotMqttClient.bError THEN
+				// ToDo: add my error logging here
+				hrErrorOccurred := fbIotMqttClient.hrErrorCode;
+			END_IF
+		END_IF
+		
+		IF NOT bSubscribedStatusPathAllocationRobo_1 THEN
+			bSubscribedStatusPathAllocationRobo_1 := fbIotMqttClient.Subscribe(sTopic:=sTopicSubToStatusPathAllocationRobo_1, eQoS:=TcIotMqttQos.AtMostOnceDelivery);
+			
+			IF fbIotMqttClient.bError THEN
+				// ToDo: add my error logging here
+				hrErrorOccurred := fbIotMqttClient.hrErrorCode;
+			END_IF
+		END_IF
+		
+		IF NOT bSubscribedStatusPathAllocationRobo_2 THEN
+			bSubscribedFleetMgn_Robo := fbIotMqttClient.Subscribe(sTopic:=sTopicSubToStatusPathAllocationRobo_2, eQoS:=TcIotMqttQos.AtMostOnceDelivery);
+			
+			IF fbIotMqttClient.bError THEN
+				// ToDo: add my error logging here
+				hrErrorOccurred := fbIotMqttClient.hrErrorCode;
+			END_IF
+		END_IF
+		
+		IF NOT bSubscribedStatusPathAllocationRobo_3 THEN
+			bSubscribedFleetMgn_Robo := fbIotMqttClient.Subscribe(sTopic:=sTopicSubToStatusPathAllocationRobo_3, eQoS:=TcIotMqttQos.AtMostOnceDelivery);
+			
+			IF fbIotMqttClient.bError THEN
+				// ToDo: add my error logging here
+				hrErrorOccurred := fbIotMqttClient.hrErrorCode;
+			END_IF
+		END_IF
+		
+		IF NOT bSubscribedStatusPathAllocationRobo_4 THEN
+			bSubscribedFleetMgn_Robo := fbIotMqttClient.Subscribe(sTopic:=sTopicSubToStatusPathAllocationRobo_4, eQoS:=TcIotMqttQos.AtMostOnceDelivery);
+			
+			IF fbIotMqttClient.bError THEN
+				// ToDo: add my error logging here
+				hrErrorOccurred := fbIotMqttClient.hrErrorCode;
+			END_IF
+		END_IF
+		
+		IF NOT bSubscribedIstPoseRobo_1 THEN
+			bSubscribedIstPoseRobo_1 := fbIotMqttClient.Subscribe(sTopic:=sTopicSubToIstPoseRobo_1, eQoS:=TcIotMqttQos.AtMostOnceDelivery);
+			
+			IF fbIotMqttClient.bError THEN
+				// ToDo: add my error logging here
+				hrErrorOccurred := fbIotMqttClient.hrErrorCode;
+			END_IF
+		END_IF
+		
+		IF NOT bSubscribedIstPoseRobo_2 THEN
+			bSubscribedIstPoseRobo_2 := fbIotMqttClient.Subscribe(sTopic:=sTopicSubToIstPoseRobo_2, eQoS:=TcIotMqttQos.AtMostOnceDelivery);
+			
+			IF fbIotMqttClient.bError THEN
+				// ToDo: add my error logging here
+				hrErrorOccurred := fbIotMqttClient.hrErrorCode;
+			END_IF
+		END_IF
+		
+		IF NOT bSubscribedIstPoseRobo_3 THEN
+			bSubscribedIstPoseRobo_3 := fbIotMqttClient.Subscribe(sTopic:=sTopicSubToIstPoseRobo_3, eQoS:=TcIotMqttQos.AtMostOnceDelivery);
+			
+			IF fbIotMqttClient.bError THEN
+				// ToDo: add my error logging here
+				hrErrorOccurred := fbIotMqttClient.hrErrorCode;
+			END_IF
+		END_IF
+		
+		IF NOT bSubscribedIstPoseRobo_4 THEN
+			bSubscribedIstPoseRobo_4 := fbIotMqttClient.Subscribe(sTopic:=sTopicSubToIstPoseRobo_4, eQoS:=TcIotMqttQos.AtMostOnceDelivery);
+			
+			IF fbIotMqttClient.bError THEN
+				// ToDo: add my error logging here
+				hrErrorOccurred := fbIotMqttClient.hrErrorCode;
+			END_IF
+		END_IF
+		
+		
+		IF NOT bSubscribedPowerMgmtStat_1 THEN
+			bSubscribedPowerMgmtStat_1 := fbIotMqttClient.Subscribe(sTopic:=sTopicSubToPowerMgmtStat_1, eQoS:=TcIotMqttQos.AtMostOnceDelivery);
+			
+			IF fbIotMqttClient.bError THEN
+				// ToDo: add my error logging here
+				hrErrorOccurred := fbIotMqttClient.hrErrorCode;
+			END_IF
+		END_IF
+		
+		IF NOT bSubscribedPowerMgmtStat_2 THEN
+			bSubscribedPowerMgmtStat_2 := fbIotMqttClient.Subscribe(sTopic:=sTopicSubToPowerMgmtStat_2, eQoS:=TcIotMqttQos.AtMostOnceDelivery);
+			
+			IF fbIotMqttClient.bError THEN
+				// ToDo: add my error logging here
+				hrErrorOccurred := fbIotMqttClient.hrErrorCode;
+			END_IF
+		END_IF
+		//////////////////////////////// Sub FleetMgnt Topic ///////////////////////////////
+	END_IF	
+	
+	
+	
+	// Senden der MQTT- Nachrichten
+	
+	
+	IF fbIotMqttClient.bConnected THEN			// Kontrolle, ob Broker verbunden ist
+		fbTimerPub(IN:=TRUE);
+		
+		//
+		// publish new paylod every 500 MS
+		//
+		IF fbTimerPub.Q THEN					// Abwarten des oben eingestellten Intervalls
+			fbTimerPub(IN:=FALSE);
+			
+			//
+			// Nachricht an PowerMgmt
+			//
+			fbJson.ResetDocument();
+			fbJsonDataType.AddJsonValueFromSymbol(fbJson, 'ST_PwrMgmt_HAWino_In', SIZEOF(stMqtt_HAWinoValues.Output), ADR(stMqtt_HAWinoValues.Output));
+			//sJsonDoc := fbJson.GetDocument();
+			fbJson.CopyDocument(sJsonDoc, SIZEOF(sJsonDoc));
+			
+			sPayloadPub := sJsonDoc;	
+			fbIotMqttClient.Publish(sTopic:= sTopicPubToPowerMgmt, 
+										pPayload:= ADR(sPayloadPub), 
+										nPayloadSize:= LEN2(ADR(sPayloadPub))+1, 										
+										eQoS:= TcIotMqttQos.AtMostOnceDelivery, 
+										bRetain:= FALSE, 
+										bQueue:= FALSE);
+									
+			
+			SOC_Out	:= CONCAT( '{"SoC" : ',GV.strGlobalSoC);
+			SOC_Out	:= CONCAT( SOC_Out,'}');
+			
+			
+			
+			
+			//SOC_Out := 	LREAL_TO_STRING(stMqtt_HAWinoValues.Output.fSoC);
+			
+						
+			fbIotMqttClient.Publish(sTopic:= sTopicPubToPowerMgmt_SOC, 
+										pPayload:=ADR(SOC_Out), 
+										nPayloadSize:= INT_TO_UDINT(LEN(SOC_Out)),
+										eQoS:= TcIotMqttQos.AtMostOnceDelivery, 
+										bRetain:= FALSE, 
+										bQueue:= FALSE);
+										
+										
+			IF fbIotMqttClient.bError THEN
+				// ToDo: add error logging here
+				hrErrorOccurred := fbIotMqttClient.hrErrorCode;
+			END_IF	
+			
+			//////////////////////////////// Publish to FleetMgnt ///////////////////////////////
+			fbJson.ResetDocument();
+			
+			fbJsonDataType.AddJsonValueFromSymbol(fbJson, 'STATUS_ROBOT', SIZEOF(GV.statusRobot), ADR(GV.statusRobot));
+			
+			fbJson.CopyDocument(sJsonDoc, SIZEOF(sJsonDoc));
+			
+			sPayloadPub := sJsonDoc;	
+			
+			fbIotMqttClient.Publish(sTopic:= sTopicPubRobotStatus, 
+										pPayload:= ADR(sPayloadPub), 
+										nPayloadSize:= LEN2(ADR(sPayloadPub)), 										
+										eQoS:= TcIotMqttQos.AtMostOnceDelivery, 
+										bRetain:= True, 
+										bQueue:= FALSE);
+										 
+			fbJson.ResetDocument();
+			
+			fbJsonDataType.AddJsonValueFromSymbol(fbJson, 'STATUS_IST_POS', SIZEOF(GV.RobotPose), ADR(GV.RobotPose));
+			
+			fbJson.CopyDocument(sJsonDoc, SIZEOF(sJsonDoc));
+			
+			sPayloadPub := sJsonDoc;	
+			
+			fbIotMqttClient.Publish(sTopic:= sTopicPubRobotPose, 
+										pPayload:= ADR(sPayloadPub), 
+										nPayloadSize:= LEN2(ADR(sPayloadPub)), 										
+										eQoS:= TcIotMqttQos.AtMostOnceDelivery, 
+										bRetain:= FALSE, 
+										bQueue:= FALSE);
+			//////////							
+			fbJson.ResetDocument();
+			
+			fbJsonDataType.AddJsonValueFromSymbol(fbJson, 'STATUS_PATH_ALLOCATION', SIZEOF(GV.statusPathAllocationRobo), ADR(GV.statusPathAllocationRobo));
+			
+			fbJson.CopyDocument(sJsonDoc, SIZEOF(sJsonDoc));
+			
+			sPayloadPub := sJsonDoc;	
+			
+			fbIotMqttClient.Publish(sTopic:= sTopicPubRobotPathAllocation, 
+										pPayload:= ADR(sPayloadPub), 
+										nPayloadSize:= LEN2(ADR(sPayloadPub)), 										
+										eQoS:= TcIotMqttQos.AtMostOnceDelivery, 
+										bRetain:= FALSE, 
+										bQueue:= FALSE);
+										
+		
+		//////////////////////////////// Publish to FleetMgnt ////////////////////////////////
+		
+		END_IF
+	END_IF
+	
+	
+	
+	// Verarbeiten der Subscriptions
+	
+	
+	IF fbMessageQueue.nQueuedMessages > 0 THEN			// Kontrolle, ob neue Daten vorliegen
+		IF fbMessageQueue.Dequeue(fbMessage:=fbMessage) THEN
+			fbMessage.GetTopic(pTopic:=ADR(sTopicRcv), nTopicSize:=SIZEOF(sTopicRcv) );
+			fbMessage.GetPayload(pPayload:=ADR(sPayloadRcv), nPayloadSize:=SIZEOF(sPayloadRcv), bSetNullTermination:=FALSE);
+				
+			//
+			// Message from PowerMgmt
+			//
+			IF fbMessage.CompareTopic(sTopic:=sTopicSubToPowerMgmt) THEN		// Wenn die Daten vom PowerMgmt kommen, dann führe folgenede Aktion aus
+				
+			// Json-String aufteilen und in Variablen schreiben
+				fbJsonDataType.SetSymbolFromJson(sPayloadRcv,'ST_PwrMgmt_HAWino_Out',SIZEOF(stMqtt_HAWinoValues.Input),ADR(stMqtt_HAWinoValues.Input));
+			END_IF
+		
+			//////////////////// Get FleetMgnt Msg ////////////////////
+			IF fbMessage.CompareTopic(sTopic:=sTopicSubToFleetMgmt) THEN	
+			
+				sPayloadRcvStatusFleetMgnt := '                                                                                    ';
+		
+    			fbMessage.GetPayload(pPayload:=ADR(sPayloadRcvStatusFleetMgnt), nPayloadSize:=SIZEOF(sPayloadRcvStatusFleetMgnt), bSetNullTermination:=FALSE);
+		
+				// Erst bei neuer MQTT Message nach Init wird Nachricht in GVL geschrieben
+				IF Init THEN
+					sLastPayloadRcvStatusFleetMgnt := sPayloadRcvStatusFleetMgnt;
+					Init := FALSE;
+				END_IF
+				//IF sLastPayloadRcvStatusFleetMgnt <> sPayloadRcvStatusFleetMgnt THEN
+				fbJsonDataType.SetSymbolFromJson(sPayloadRcvStatusFleetMgnt,'STATUS_FLEETMGMT',SIZEOF(GV.statusFleetMgntRaw), ADR(GV.statusFleetMgntRaw));
+				//END_IF
+				//sLastPayloadRcvStatusFleetMgnt := sPayloadRcvStatusFleetMgnt;
+			END_IF
+			
+			/////////
+			
+			IF fbMessage.CompareTopic(sTopic:=sTopicSubToStatusPathAllocationRobo_1) THEN	
+			
+				sPayloadRcvStatusPathAllocationRobo_1 := '                                                                                    ';
+		
+    			fbMessage.GetPayload(pPayload:=ADR(sPayloadRcvStatusPathAllocationRobo_1), nPayloadSize:=SIZEOF(sPayloadRcvStatusPathAllocationRobo_1), bSetNullTermination:=FALSE);
+		
+				fbJsonDataType.SetSymbolFromJson(sPayloadRcvStatusPathAllocationRobo_1,'STATUS_PATH_ALLOCATION',SIZEOF(GV.statusPathAllocationRobo_1), ADR(GV.statusPathAllocationRobo_1));
+				
+			END_IF
+			
+			/////////
+			
+			IF fbMessage.CompareTopic(sTopic:=sTopicSubToStatusPathAllocationRobo_2) THEN	
+			
+				sPayloadRcvStatusPathAllocationRobo_2 := '                                                                                    ';
+		
+    			fbMessage.GetPayload(pPayload:=ADR(sPayloadRcvStatusPathAllocationRobo_2), nPayloadSize:=SIZEOF(sPayloadRcvStatusPathAllocationRobo_2), bSetNullTermination:=FALSE);
+		
+				fbJsonDataType.SetSymbolFromJson(sPayloadRcvStatusPathAllocationRobo_2,'STATUS_PATH_ALLOCATION',SIZEOF(GV.statusPathAllocationRobo_2), ADR(GV.statusPathAllocationRobo_2));
+				
+			END_IF
+			
+			/////////
+			
+			IF fbMessage.CompareTopic(sTopic:=sTopicSubToStatusPathAllocationRobo_3) THEN	
+			
+				sPayloadRcvStatusPathAllocationRobo_3 := '                                                                                    ';
+		
+    			fbMessage.GetPayload(pPayload:=ADR(sPayloadRcvStatusPathAllocationRobo_3), nPayloadSize:=SIZEOF(sPayloadRcvStatusPathAllocationRobo_3), bSetNullTermination:=FALSE);
+		
+				fbJsonDataType.SetSymbolFromJson(sPayloadRcvStatusPathAllocationRobo_3,'STATUS_PATH_ALLOCATION',SIZEOF(GV.statusPathAllocationRobo_3), ADR(GV.statusPathAllocationRobo_3));
+				
+			END_IF
+			
+			/////////
+			
+			IF fbMessage.CompareTopic(sTopic:=sTopicSubToStatusPathAllocationRobo_4) THEN	
+			
+				sPayloadRcvStatusPathAllocationRobo_4 := '                                                                                    ';
+		
+    			fbMessage.GetPayload(pPayload:=ADR(sPayloadRcvStatusPathAllocationRobo_4), nPayloadSize:=SIZEOF(sPayloadRcvStatusPathAllocationRobo_4), bSetNullTermination:=FALSE);
+		
+				fbJsonDataType.SetSymbolFromJson(sPayloadRcvStatusPathAllocationRobo_4,'STATUS_PATH_ALLOCATION',SIZEOF(GV.statusPathAllocationRobo_4), ADR(GV.statusPathAllocationRobo_4));
+				
+			END_IF
+			
+			IF fbMessage.CompareTopic(sTopic:=sTopicSubToIstPoseRobo_1) THEN	
+			
+				sPayloadRcvIstPoseRobo_1 := '                                                                                                                                                               ';
+		
+    			fbMessage.GetPayload(pPayload:=ADR(sPayloadRcvIstPoseRobo_1), nPayloadSize:=SIZEOF(sPayloadRcvIstPoseRobo_1), bSetNullTermination:=FALSE);
+		
+				fbJsonDataType.SetSymbolFromJson(sPayloadRcvIstPoseRobo_1,'STATUS_IST_POS',SIZEOF(GV.robotPose_1), ADR(GV.robotPose_1));
+				
+			END_IF
+			
+			IF fbMessage.CompareTopic(sTopic:=sTopicSubToIstPoseRobo_2) THEN	
+			
+				sPayloadRcvIstPoseRobo_2 := '                                                                                                                                                               ';
+		
+    			fbMessage.GetPayload(pPayload:=ADR(sPayloadRcvIstPoseRobo_2), nPayloadSize:=SIZEOF(sPayloadRcvIstPoseRobo_2), bSetNullTermination:=FALSE);
+		
+				fbJsonDataType.SetSymbolFromJson(sPayloadRcvIstPoseRobo_2,'STATUS_IST_POS',SIZEOF(GV.robotPose_2), ADR(GV.robotPose_2));
+				
+			END_IF
+			
+			IF fbMessage.CompareTopic(sTopic:=sTopicSubToIstPoseRobo_3) THEN	
+			
+				sPayloadRcvIstPoseRobo_3 := '                                                                                                                                                               ';
+		
+    			fbMessage.GetPayload(pPayload:=ADR(sPayloadRcvIstPoseRobo_3), nPayloadSize:=SIZEOF(sPayloadRcvIstPoseRobo_3), bSetNullTermination:=FALSE);
+		
+				fbJsonDataType.SetSymbolFromJson(sPayloadRcvIstPoseRobo_3,'STATUS_IST_POS',SIZEOF(GV.robotPose_3), ADR(GV.robotPose_3));
+				
+			END_IF
+			
+			IF fbMessage.CompareTopic(sTopic:=sTopicSubToIstPoseRobo_4) THEN	
+			
+				sPayloadRcvIstPoseRobo_4 := '                                                                                                                                                               ';
+		
+    			fbMessage.GetPayload(pPayload:=ADR(sPayloadRcvIstPoseRobo_4), nPayloadSize:=SIZEOF(sPayloadRcvIstPoseRobo_4), bSetNullTermination:=FALSE);
+		
+				fbJsonDataType.SetSymbolFromJson(sPayloadRcvIstPoseRobo_4,'STATUS_IST_POS',SIZEOF(GV.robotPose_4), ADR(GV.robotPose_4));
+				
+			END_IF
+			
+			IF fbMessage.CompareTopic(sTopic:=sTopicSubToPowerMgmtStat_1) THEN	
+			
+				sPayloadRcvPowerMgmtStat_1 := '                                                                                    ';
+		
+    			fbMessage.GetPayload(pPayload:=ADR(sPayloadRcvPowerMgmtStat_1), nPayloadSize:=SIZEOF(sPayloadRcvPowerMgmtStat_1), bSetNullTermination:=FALSE);
+		
+				fbJsonDataType.SetSymbolFromJson(sPayloadRcvPowerMgmtStat_1,'STATUS_POWER_MANAGEMENT',SIZEOF(GV.statusPowerManagementStat_1), ADR(GV.statusPowerManagementStat_1));
+				
+			END_IF
+			
+			IF fbMessage.CompareTopic(sTopic:=sTopicSubToPowerMgmtStat_2) THEN	
+			
+				sPayloadRcvPowerMgmtStat_2 := '                                                                                    ';
+		
+    			fbMessage.GetPayload(pPayload:=ADR(sPayloadRcvPowerMgmtStat_2), nPayloadSize:=SIZEOF(sPayloadRcvPowerMgmtStat_2), bSetNullTermination:=FALSE);
+		
+				fbJsonDataType.SetSymbolFromJson(sPayloadRcvPowerMgmtStat_2,'STATUS_POWER_MANAGEMENT',SIZEOF(GV.statusPowerManagementStat_2), ADR(GV.statusPowerManagementStat_2));
+				
+			END_IF
+			//////////////////// Get FleetMgnt Msg ////////////////////
+			
+		END_IF
+	END_IF		
+	
+
+	// Evaulierung der empfangenen Daten
+	
+	//
+	// ToDo: Plausibilitätsprüfung von stMqtt_HAWinoValues.Input und evt. TypConversion
+	// Attention! The assignment of input to output is correct. Don `t change!
+	//	
+	
+	stMqtt_HAWino_Out.bChargingActive := stMqtt_HAWinoValues.Input.bChargingActive;
+	stMqtt_HAWino_Out.bExternalRecalibrationTrigger := stMqtt_HAWinoValues.Input.bExternalRecalibrationTrigger;
+	stMqtt_HAWino_Out.fExternalRecalibrationValue := stMqtt_HAWinoValues.Input.fExternalRecalibrationValue;
+	
+	
+	// Hier Communication Check einbauen
+	
+	//fbComCheckFlag(Set:= stMqtt_HAWinoValues.Input.bComCheckRequest, 
+	//					Reset1:= NOT stMqtt_HAWinoValues.Input.bComCheckRequest,
+	//					Q1 => bComCheckAnswer);
+	bComCheckAnswer	:= TRUE;
+					
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="MQTT">
+      <LineId Id="3" Count="10" />
+      <LineId Id="381" Count="0" />
+      <LineId Id="14" Count="1" />
+      <LineId Id="775" Count="0" />
+      <LineId Id="348" Count="0" />
+      <LineId Id="388" Count="2" />
+      <LineId Id="774" Count="0" />
+      <LineId Id="758" Count="0" />
+      <LineId Id="777" Count="2" />
+      <LineId Id="776" Count="0" />
+      <LineId Id="610" Count="0" />
+      <LineId Id="634" Count="0" />
+      <LineId Id="611" Count="0" />
+      <LineId Id="391" Count="0" />
+      <LineId Id="16" Count="97" />
+      <LineId Id="354" Count="0" />
+      <LineId Id="356" Count="6" />
+      <LineId Id="355" Count="0" />
+      <LineId Id="363" Count="0" />
+      <LineId Id="365" Count="6" />
+      <LineId Id="364" Count="0" />
+      <LineId Id="372" Count="0" />
+      <LineId Id="374" Count="6" />
+      <LineId Id="373" Count="0" />
+      <LineId Id="392" Count="0" />
+      <LineId Id="394" Count="6" />
+      <LineId Id="393" Count="0" />
+      <LineId Id="780" Count="0" />
+      <LineId Id="782" Count="6" />
+      <LineId Id="781" Count="0" />
+      <LineId Id="789" Count="0" />
+      <LineId Id="791" Count="6" />
+      <LineId Id="790" Count="0" />
+      <LineId Id="807" Count="0" />
+      <LineId Id="809" Count="6" />
+      <LineId Id="808" Count="0" />
+      <LineId Id="816" Count="0" />
+      <LineId Id="818" Count="6" />
+      <LineId Id="817" Count="0" />
+      <LineId Id="799" Count="0" />
+      <LineId Id="613" Count="0" />
+      <LineId Id="615" Count="6" />
+      <LineId Id="614" Count="0" />
+      <LineId Id="635" Count="0" />
+      <LineId Id="637" Count="6" />
+      <LineId Id="636" Count="0" />
+      <LineId Id="114" Count="85" />
+      <LineId Id="401" Count="0" />
+      <LineId Id="403" Count="12" />
+      <LineId Id="402" Count="0" />
+      <LineId Id="416" Count="0" />
+      <LineId Id="447" Count="0" />
+      <LineId Id="200" Count="40" />
+      <LineId Id="461" Count="2" />
+      <LineId Id="465" Count="5" />
+      <LineId Id="477" Count="0" />
+      <LineId Id="480" Count="0" />
+      <LineId Id="464" Count="0" />
+      <LineId Id="481" Count="0" />
+      <LineId Id="483" Count="9" />
+      <LineId Id="482" Count="0" />
+      <LineId Id="493" Count="0" />
+      <LineId Id="495" Count="9" />
+      <LineId Id="494" Count="0" />
+      <LineId Id="505" Count="0" />
+      <LineId Id="507" Count="9" />
+      <LineId Id="506" Count="0" />
+      <LineId Id="825" Count="0" />
+      <LineId Id="827" Count="7" />
+      <LineId Id="826" Count="0" />
+      <LineId Id="835" Count="0" />
+      <LineId Id="865" Count="7" />
+      <LineId Id="836" Count="0" />
+      <LineId Id="845" Count="0" />
+      <LineId Id="873" Count="7" />
+      <LineId Id="846" Count="0" />
+      <LineId Id="855" Count="0" />
+      <LineId Id="881" Count="7" />
+      <LineId Id="856" Count="0" />
+      <LineId Id="623" Count="0" />
+      <LineId Id="625" Count="7" />
+      <LineId Id="624" Count="0" />
+      <LineId Id="648" Count="0" />
+      <LineId Id="650" Count="7" />
+      <LineId Id="649" Count="0" />
+      <LineId Id="241" Count="24" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

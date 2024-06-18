@@ -1,0 +1,126 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="Beobachter" Id="{5cd624e6-3c98-4aa9-8134-a6770a787d13}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM Beobachter
+VAR CONSTANT
+	T : LREAL := 0.01; 		// Zykluszeit	
+	CAMDELAY : INT := 16; 	// Delay entspricht CAMDELAY * T -> 16*0.01s = 160ms
+END_VAR
+
+VAR
+	startup : BOOL := 1;	
+
+	istPoseCamera :  RobotPose;
+	istPoseModel : RobotPose;
+	istVelo : RobotPose;
+	
+	istPose : RobotPose;
+	
+	vX, vY, vTheta : LREAL;
+	
+	//Indexvariablen
+	i : INT := 0;
+	index : int := 0;
+	
+	//ZRM Variablen
+	zOutVars: ARRAY[1..3,1..CAMDELAY] OF LREAL;
+	zVars : ARRAY[1..3] OF LREAL;
+	zVarsDot : ARRAY[1..3] OF LREAL;
+	zVarsDelta : ARRAY[1..3] OF LREAL;
+	
+
+	A : ARRAY[1..3,1..3] OF LREAL := [  0, 0, 0, (*
+									*)  0, 0, 0, (*
+									*)  0, 0, 0];
+						
+	B : ARRAY[1..3,1..3] OF LREAL := [  1, 0, 0,(*
+									*)  0, 1, 0,(*
+									*)  0, 0, 1];
+									
+	C : ARRAY[1..3,1..6] OF LREAL := [  1, 0, 0, (*
+									*)  0, 1, 0, (*
+									*)  0, 0, 1];
+									
+	L : ARRAY[1..6,1..3] OF LREAL := [  1, 0, 0,(*
+									*)  0, 1, 0,(*
+									*)  0, 0, 1];
+									
+	fehlergain : LREAL;				//Abhängig vom Fehler. Wird mit L multipiziert um die tatsächliche Fehlerverstärkung zu bekommen
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[istPoseCamera := Main.getIstPoseCamera();
+istVelo := Main.getIstVeloEnc();
+
+//Trafo
+vX := (COS(istPose.theta)* istVelo.x - SIN(istPose.theta) * istVelo.y);
+vY := (SIN(istPose.theta)* istVelo.x +COS(istPose.theta) * istVelo.y);
+vTheta := istVelo.theta;
+
+IF startup and istPoseCamera.y <> 0 THEN
+ 	
+	zVars[1] := istPoseCamera.x;
+	zVars[2] := istPoseCamera.y;
+	zVars[3] := istPoseCamera.theta;
+
+	startup := 0;
+END_IF
+
+
+
+//var_Punkt berechnen
+zVarsDot[1] := vX + fehlergain * zVarsDelta[1] * L[1,1];
+zVarsDot[2] := vY + fehlergain * zVarsDelta[2] * L[2,2];
+zVarsDot[3] := vTheta + fehlergain * zVarsDelta[3] * L[3,3];
+
+//integrieren
+FOR i := 1 TO 3 BY 1 DO
+	zVars[i] := zVarsDot[i] * T + zVars[i];
+END_FOR
+
+//Theta ist nur zwischen -Pi bis +Pi definiert, und schlägt dan Um
+IF zVars[3] > 3.1416 THEN
+	zVars[3] := zVars[3] - 2 * 3.1416;
+ELSIF zVars[3] < -3.1416 THEN
+	zVars[3] := zVars[3] + 2 * 3.1416;
+END_IF
+
+
+//Berechnen des Modell zu Messwertfehler
+fehlergain := 7/(istPoseCamera.e * 2 + 0.1);	//hat am besten funktioniert
+
+
+FOR i:= 0 TO CAMDELAY - 2 BY 1 DO				//i geht von 0 bis 14 sodass
+	index := CAMDELAY - i;						//index von 16 - 2 geht.
+	zOutVars[1,index] := zOutVars[1,index-1];
+	zOutVars[2,index] := zOutVars[2,index-1];
+	zOutVars[3,index] := zOutVars[3,index-1];
+END_FOR
+	zOutVars[1,1] := zVars[1];
+	zOutVars[2,1] := zVars[2];
+	zOutVars[3,1] := zVars[3];
+
+zVarsDelta[1] := istPoseCamera.x - zOutVars[1,CAMDELAY];
+zVarsDelta[2] := istPoseCamera.y - zOutVars[2,CAMDELAY];
+zVarsDelta[3] := Main.absToDynTheta(absolutThetaSoll:=istPoseCamera.theta, absolutThetaIst := zOutVars[3,CAMDELAY]);
+
+//Ausgang berechnen
+istPose.x := zVars[1];
+istPose.y := zVars[2];
+istPose.theta := zVars[3];
+
+Main.setIstPose(istPose);
+]]></ST>
+    </Implementation>
+    <LineIds Name="Beobachter">
+      <LineId Id="3" Count="9" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="18" Count="7" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="31" Count="38" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

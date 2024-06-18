@@ -1,0 +1,278 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="fb_GetOpenAreaPath" Id="{08a30385-08f7-4dc8-a663-98287ae1f86a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK fb_GetOpenAreaPath
+VAR_INPUT
+	Istruct_IstPose 			: RobotPose;;
+	Ilr_GoalPosX 				: LREAL;
+	Ilr_GoalPosY 				: LREAL;
+	Ilr_GoalOrientaion 			: LREAL;
+END_VAR
+VAR_OUTPUT
+	Oarr_struct_Waypointlist 	: ARRAY[1..10] OF RobotSollPose;
+	Ox_Wait 					: BOOL;
+END_VAR
+VAR
+	fb_RRT_0 					: MATLAB0;
+	
+	fb_DetermineArea_0 			: fb_DetermineArea; 
+	
+	lr_GoalPosX 				: LREAL;
+	lr_GoalPosY 				: LREAL;
+	lr_GoalOrientaion 			: LREAL;
+	
+	m_goalPos_x 				: LREAL := 0;
+	m_goalPos_y 				: LREAL := 0;	
+	
+	usi_Index_1					: INT;	// Andere Roboposen einlesen
+	usi_Index_2					: INT;	// Andere Roboposen einlesen
+	usi_Index_3					: INT;	// Wegpunktliste beschreiben
+	usi_Index_4					: INT := 0;	// Max alle 100 Zyklen Wegpunkte neu berechnen 
+	usi_Index_5					: INT;	// Wegpunktliste reset
+	
+	arr_struct_Waypointlist 	: ARRAY[1..10] OF RobotSollPose;
+	
+	arr_lr_AgvPos 				: ARRAY[1..3] OF ARRAY[1..2] OF LREAL;
+	arr_old_AgvPos 				: ARRAY[1..3] OF ARRAY[1..2] OF LREAL;
+	
+	(* Wenn Variable 1 wird der Algorithmus einmal durchlaufen *)
+	si_CalculationActivated 	: SINT;
+	
+	Recalculated				: BOOL;
+	
+	(* Variable true, wenn ein weiterer Roboter in der Nähe vom Roboter *)
+	x_RoboInsideBox				: BOOL;
+	x_RoboInsidebox_1			: BOOL;
+	x_RoboInsidebox_2			: BOOL;
+	x_RoboInsidebox_3			: BOOL;
+	
+	lr_BoxSize_1				: LREAL := 0.4; // 0.8
+	lr_BoxSize_2				: LREAL := 5.2; // 
+	
+	(* Variable true, wenn neue Pos vorliegt *)
+	x_NewDest					: BOOL;
+	PosInit						: BOOL:=TRUE;
+	
+	r_RoboPosX 					: REAL;
+	r_RoboPosY 					: REAL;
+	arr_lr_d					: ARRAY [1..3] OF LREAL;
+	fb_d 						:fb_distance;
+	RoboPos						:RobotPose;
+	usi_index					:INT;
+	
+	d_1: LREAL;
+	lr_d1: LREAL;
+	lr_d2: LREAL;
+	lr_d3: LREAL;
+	lr_recalc_dist: LREAL := 1;
+	lr_stop_dist: LREAL := 0.5;
+	x_stop: BOOL;
+	fb_TMR_7: TON;
+	x_recalc_stop: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(* Eingangsverarbeitung *)
+//Einlesen der distanzen zu anderen Robotern 
+
+lr_d1:=prg_data.lr_d1;
+lr_d2:=prg_data.lr_d2;
+lr_d3:=prg_data.lr_d3;
+
+IF lr_d1<lr_stop_dist OR lr_d2<lr_stop_dist OR lr_d3<lr_stop_dist THEN
+	IF Var_HAWIno.Robot_Number=1 THEN
+			fb_TMR_7(IN:=TRUE, PT:=T#3S);
+	ELSIF Var_HAWIno.Robot_Number=2 THEN
+			fb_TMR_7(IN:=TRUE, PT:=T#6S);
+	ELSIF Var_HAWIno.Robot_Number=3 THEN
+			fb_TMR_7(IN:=TRUE, PT:=T#9S);
+	ELSIF Var_HAWIno.Robot_Number=4 THEN
+			fb_TMR_7(IN:=TRUE, PT:=T#12S);
+	END_IF
+	x_stop:=TRUE;
+ELSE
+	x_stop:=FALSE;
+	fb_TMR_7(IN:=FALSE);
+END_IF
+
+IF x_stop AND fb_TMR_7.Q=FALSE THEN
+	x_recalc_stop:=TRUE;
+				FOR usi_Index_5:=1 TO 10 DO
+					arr_struct_Waypointlist[usi_Index_5].x:=0;
+					arr_struct_Waypointlist[usi_Index_5].y:=0;
+					arr_struct_Waypointlist[usi_Index_5].theta:=0;
+					arr_struct_Waypointlist[usi_Index_5].m:=0;
+				END_FOR
+ELSE
+			// Positionen herunterskalieren / Div 0 abfangen
+			IF Ilr_GoalPosX <> 0 OR Ilr_GoalPosY <> 0 THEN
+				lr_GoalPosX := Ilr_GoalPosX / 200.0;
+				lr_GoalPosY := Ilr_GoalPosY / 200.0;
+			ELSE
+				lr_GoalPosX := 0;	
+				lr_GoalPosY := 0;
+			END_IF
+			
+			IF Ilr_GoalOrientaion <> 0 THEN
+				lr_GoalOrientaion := Ilr_GoalOrientaion;
+			ELSE
+				lr_GoalOrientaion := PI / 2.0;
+			END_IF
+			
+			// Wenn eine neue Zielposition vorgegeben wird 				oder das Ziel vom RRT der aktuellen Position entspricht, soll neu berechnet werden
+			IF m_goalPos_x <> lr_GoalPosX OR m_goalPos_y <> lr_GoalPosY OR (r_RoboPosX = TO_REAL(fb_RRT_0.y[9]) AND r_RoboPosY = TO_REAL(fb_RRT_0.y[19]))THEN
+				x_NewDest:=TRUE;
+				m_goalPos_x:=lr_GoalPosX;
+				m_goalPos_y:=lr_GoalPosY;
+			END_IF
+			
+			si_CalculationActivated := 0;
+			
+			// Wenn eine neues Ziel vorliegt oder ein weiterer Roboter in der Nähe ist soll der RRT-Algorithmus neu berechnet werden 
+			IF x_NewDest OR (usi_Index_4=0 AND x_RoboInsideBox) OR x_recalc_stop THEN
+				Recalculated:=TRUE;
+				si_CalculationActivated := 1;
+			END_IF
+			 
+			usi_Index_4 := usi_Index_4 + 1;
+			
+			// Max einmal in der Sekunde Wegpunkte neu berechnen
+			IF  (usi_Index_4 > 50 AND x_RoboInsideBox) OR x_NewDest OR x_recalc_stop THEN
+				
+				// Wegpunktliste reset
+				FOR usi_Index_5:=1 TO 10 DO
+					arr_struct_Waypointlist[usi_Index_5].x:=0;
+					arr_struct_Waypointlist[usi_Index_5].y:=0;
+					arr_struct_Waypointlist[usi_Index_5].theta:=0;
+					arr_struct_Waypointlist[usi_Index_5].m:=0;
+				END_FOR
+				
+				usi_Index_4 := 0;
+				x_NewDest:=FALSE;
+				
+			// Überlauf abfangen	
+			ELSIF usi_Index_4 < 0 THEN
+				usi_Index_4 := 0;
+			END_IF
+			
+			usi_Index_2 := 1;
+			
+			// Andere Roboterposen einlesen
+			arr_lr_AgvPos[1][1]:=prg_Data.arr_roboPose[1].x/200;
+			arr_lr_AgvPos[1][2]:=prg_Data.arr_roboPose[1].y/200;
+			arr_lr_AgvPos[2][1]:=prg_Data.arr_roboPose[2].x/200;
+			arr_lr_AgvPos[2][2]:=prg_Data.arr_roboPose[2].y/200;
+			arr_lr_AgvPos[3][1]:=prg_Data.arr_roboPose[3].x/200;
+			arr_lr_AgvPos[3][2]:=prg_Data.arr_roboPose[3].y/200;
+			// Überwachung der Position anderer AGV
+			
+			IF Recalculated THEN
+				arr_old_AgvPos[1]:=arr_lr_AgvPos[1];
+				arr_old_AgvPos[2]:=arr_lr_AgvPos[2];
+				arr_old_AgvPos[3]:=arr_lr_AgvPos[3];
+				Recalculated:=FALSE;
+				x_recalc_stop:=FALSE;
+			END_IF
+			
+			// Abfrage ob einer der drei weiteren Robos in der Box zum Ausweichen drin sind  
+			x_RoboInsidebox_1 :=	NOT(arr_old_AgvPos[1][1]+lr_BoxSize_1 > arr_lr_AgvPos[1][1] AND arr_old_AgvPos[1][1]-lr_BoxSize_1 < arr_lr_AgvPos[1][1] 
+									AND arr_old_AgvPos[1][2]+lr_BoxSize_1 > arr_lr_AgvPos[1][2] AND arr_old_AgvPos[1][2]-lr_BoxSize_1 < arr_lr_AgvPos[1][2])
+									AND ((camera.cameraData.RobotPosition[Var_HAWIno.Robot_Number].x / 200.0)+lr_BoxSize_2 > arr_lr_AgvPos[1][1] 
+									AND (camera.cameraData.RobotPosition[Var_HAWIno.Robot_Number].x / 200.0)-lr_BoxSize_2 < arr_lr_AgvPos[1][1] 
+									AND (camera.cameraData.RobotPosition[Var_HAWIno.Robot_Number].y / 200.0)+lr_BoxSize_2 > arr_lr_AgvPos[1][2] 
+									AND (camera.cameraData.RobotPosition[Var_HAWIno.Robot_Number].y / 200.0)-lr_BoxSize_2 < arr_lr_AgvPos[1][2]);
+					
+			x_RoboInsidebox_2 := 	NOT(arr_old_AgvPos[2][1]+lr_BoxSize_1 > arr_lr_AgvPos[2][1] AND arr_old_AgvPos[2][1]-lr_BoxSize_1 < arr_lr_AgvPos[2][1] 
+									AND arr_old_AgvPos[2][2]+lr_BoxSize_1 > arr_lr_AgvPos[2][2] AND arr_old_AgvPos[2][2]-lr_BoxSize_1 < arr_lr_AgvPos[2][2])
+									AND ((camera.cameraData.RobotPosition[Var_HAWIno.Robot_Number].x / 200.0)+lr_BoxSize_2 > arr_lr_AgvPos[2][1] 
+									AND (camera.cameraData.RobotPosition[Var_HAWIno.Robot_Number].x / 200.0)-lr_BoxSize_2 < arr_lr_AgvPos[2][1] 
+									AND (camera.cameraData.RobotPosition[Var_HAWIno.Robot_Number].y / 200.0)+lr_BoxSize_2 > arr_lr_AgvPos[2][2] 
+									AND (camera.cameraData.RobotPosition[Var_HAWIno.Robot_Number].y / 200.0)-lr_BoxSize_2 < arr_lr_AgvPos[2][2]);
+						
+			x_RoboInsidebox_3 :=	NOT(arr_old_AgvPos[3][1]+lr_BoxSize_1 > arr_lr_AgvPos[3][1] AND arr_old_AgvPos[3][1]-lr_BoxSize_1 < arr_lr_AgvPos[3][1] 
+									AND arr_old_AgvPos[3][2]+lr_BoxSize_1 > arr_lr_AgvPos[3][2] AND arr_old_AgvPos[3][2]-lr_BoxSize_1 < arr_lr_AgvPos[3][2])
+									AND ((camera.cameraData.RobotPosition[Var_HAWIno.Robot_Number].x / 200.0)+lr_BoxSize_2 > arr_lr_AgvPos[3][1] 
+									AND (camera.cameraData.RobotPosition[Var_HAWIno.Robot_Number].x / 200.0)-lr_BoxSize_2 < arr_lr_AgvPos[3][1] 
+									AND (camera.cameraData.RobotPosition[Var_HAWIno.Robot_Number].y / 200.0)+lr_BoxSize_2 > arr_lr_AgvPos[3][2] 
+									AND (camera.cameraData.RobotPosition[Var_HAWIno.Robot_Number].y / 200.0)-lr_BoxSize_2 < arr_lr_AgvPos[3][2]);
+			
+			
+			IF x_RoboInsidebox_1 OR x_RoboInsidebox_2 OR x_RoboInsidebox_3 THEN
+				x_RoboInsideBox := TRUE;
+			ELSE
+				x_RoboInsideBox := FALSE;
+			END_IF
+			
+			// Aktuelle Pose skalieren
+			r_RoboPosX := TO_REAL(Istruct_IstPose.x / 200.0);
+			r_RoboPosY := TO_REAL(Istruct_IstPose.y / 200.0);
+			
+			// Wegpunkte mit RRT-algorithmus bestimmen
+			fb_RRT_0(	ssMethodType := si_CalculationActivated,
+						start_x := r_RoboPosX, 
+						start_y := r_RoboPosY, 
+						goal_x := lr_GoalPosX, 
+						goal_y := lr_GoalPosY,
+						AGV_one_x := arr_lr_AgvPos[1][1], 
+						AGV_one_y := arr_lr_AgvPos[1][2], 
+						AGV_two_x := arr_lr_AgvPos[2][1], 
+						AGV_two_y := arr_lr_AgvPos[2][2], 
+						AGV_three_x := arr_lr_AgvPos[3][1], 
+						AGV_three_y := arr_lr_AgvPos[3][2]);
+			
+			
+			
+			// Wenn die aktuelle Pose der Zielpose gleicht, ist der Roboter am ziel oder das Ziel belegt
+			IF (r_RoboPosX = TO_REAL(fb_RRT_0.y[9]) AND r_RoboPosY = TO_REAL(fb_RRT_0.y[19])) THEN
+				Ox_Wait := TRUE;
+			ELSE
+				Ox_Wait := FALSE;
+			END_IF
+			
+			usi_Index_3 := 1;
+			
+			// Erstelle Wegpunktliste
+			IF r_RoboPosX <> TO_REAL(fb_RRT_0.y[9]) AND r_RoboPosY <> TO_REAL(fb_RRT_0.y[19]) THEN
+				FOR usi_Index_1 := 0 TO 9 BY 1 DO	
+					IF fb_RRT_0.y[usi_Index_1] <> 0 AND fb_RRT_0.y[usi_Index_1+10] <> 0  THEN
+						arr_struct_Waypointlist[usi_Index_3].x := fb_RRT_0.y[usi_Index_1] * 200;
+						arr_struct_Waypointlist[usi_Index_3].y := fb_RRT_0.y[usi_Index_1+10] * 200;
+						
+						// Wenn ein Robo in der Naehe Geschwindigkeit herabsetzen
+						IF x_RoboInsideBox THEN
+							arr_struct_Waypointlist[usi_Index_3].m := 3;
+						ELSE 
+							arr_struct_Waypointlist[usi_Index_3].m := 4;
+						END_IF
+						
+						// aktuellen Winkel beibehalten
+						arr_struct_Waypointlist[usi_Index_3].theta := PI / 2.0;
+						
+						usi_Index_3 := usi_Index_3 +1;
+					END_IF
+				END_FOR
+				
+				// Zielposition hinzufuegen
+				arr_struct_Waypointlist[usi_Index_3].x := lr_GoalPosX * 200;
+				arr_struct_Waypointlist[usi_Index_3].y := lr_GoalPosY * 200;
+				arr_struct_Waypointlist[usi_Index_3].m := 6;
+				arr_struct_Waypointlist[usi_Index_3].theta := lr_GoalOrientaion;
+				arr_struct_Waypointlist[usi_Index_3-1].m := 6;
+			END_IF
+			
+			IF si_CalculationActivated <> 0  THEN
+				Oarr_struct_Waypointlist := arr_struct_Waypointlist;
+				si_CalculationActivated := 0;	
+			END_IF
+END_IF
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="fb_GetOpenAreaPath">
+      <LineId Id="3" Count="184" />
+      <LineId Id="265" Count="0" />
+      <LineId Id="188" Count="7" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="fb_Learn_Stations" Id="{4944ed27-39de-431a-812d-a0dfde5afa3f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK fb_Learn_Stations
+VAR_INPUT
+	theta: LREAL:=0;
+END_VAR
+VAR_OUTPUT
+	Done:BOOL :=FALSE; 
+	
+END_VAR
+VAR
+	i_Ist_Station:INT:=1;
+	i_Ist_Tasche:INT:=1;
+	Confirm_Station: BOOL;
+	struct_istPose : RobotPose;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[struct_istPose:=main.getIstPose();
+ IF Confirm_Station THEN
+	Confirm_Station:=FALSE;
+	.Var_HAWIno.Stations_Global[i_Ist_Station].Taschen[i_Ist_Tasche].DESTX:=struct_istPose.x;
+	.Var_HAWIno.Stations_Global[i_Ist_Station].Taschen[i_Ist_Tasche].DESTY:=struct_istPose.y;
+	.Var_HAWIno.Stations_Global[i_Ist_Station].Taschen[i_Ist_Tasche].theta:=struct_istPose.theta;
+	IF i_Ist_Tasche<3 THEN
+		i_Ist_Tasche:=i_Ist_Tasche+1;
+	ELSIF i_Ist_Tasche=3 THEN
+		i_Ist_Tasche:=1;
+		IF i_Ist_Station<8 THEN
+			i_Ist_Station:=i_Ist_Station+1;
+		ELSIF i_Ist_Station=8 THEN
+			i_Ist_Station:=1;
+			done:=TRUE;
+		END_IF
+	END_IF
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="fb_Learn_Stations">
+      <LineId Id="33" Count="0" />
+      <LineId Id="3" Count="3" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="8" Count="10" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

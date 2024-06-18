@@ -1,0 +1,341 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="DrehzahlRegler" Id="{96cc5ec4-b385-4fb9-a565-07a08da070f2}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM DrehzahlRegler
+VAR_INPUT
+	
+END_VAR
+VAR	
+	
+	vxr : Regler:= (KP := 1 , KI:=20);
+	vyr : Regler:= (KP := 1, KI:=20); 
+	vtr : Regler:= (KP := 0.5 , KI:=10);
+	
+	pos_out_wind : LREAL := 100;
+
+// Definition der Eingänge 	
+	SollVelo : RobotPose; 
+	IstVelo : RobotPose; 
+	velMo: Dreh_Mot;
+	e : RobotPose;
+	nt: Regler;   // t
+	ny : Regler;  //y
+	nx : Regler;  //x
+	
+	vel :Dreh_Mot;
+	
+	IstVelo_n1 AT%I* : UINT;
+	IstVelo_n2 AT%I* : UINT;
+	IstVelo_n3 AT%I* : UINT;
+	
+	
+	
+
+	
+	T: LREAL := 0.001;
+	//Zeiterfassung Task
+	//ENC Daten Differenzieren für Geschwindigkeit
+fbGetCurTaskIdx  : GETCURTASKINDEX;
+     nCycleTime       : UDINT;
+	diffConst:LREAL:=1;//SECONDS //mit 1 initialisiert, um Division durch null zu vermeiden
+	//Zustandsautomat
+	state:		CoreDriveState	:=	CoreDriveState.init;
+
+	//Achsen Freischalten
+	enableMotors: BOOL	:=0;
+
+	//Umgerechnete Werte
+	vX:		LREAL:=0;
+	vY:		LREAL:=0;
+	vTheta:	LREAL:=0;
+
+	//Fahrrichtung Motor
+	velocityMotor1 :LREAL:=0;
+	velocityMotor2 :LREAL:=0;
+	velocityMotor3 :LREAL:=0;
+	
+	//Skalierung auf MaxGeschwindigkeit Skalierung hängt mit CoE Register 8020:07 8020:08 zusammen !!!
+	velocityMax:LREAL:=942.4777961;// Nenndrehzahl U/min CoE Register 8020:07 8020:08 fesgelegt Faktor 16 Wegen Getriebe 1:16
+	velocityMotorsTf:LREAL:=0;
+	
+	// Skalierung auf Ansteuersignale LREAL=>WORD   Skalierung hängt mit CoE Register 8020:07 8020:08 zusammen !!!
+	skalPos:LREAL:= 34.7668668;//  MaxValue/MaxVelocity   [1/ mm/s]   32767/(942mm/s)   MaxVelocity=D*PI*n/(16*60) //16:1 Getriebeübersetzung  
+	skalNeg:LREAL:= 34.76792783;//  MaxVelau/MaxVelocity   [1/ mm/s]   32768/(942mm/s)   MaxVelocity=(80mm*PI*3600 U/min)/(16*60sec/min)
+	
+	//Inputs: CartesianToMotors + Bumper
+	vXCartesianToMotors 	AT%I*:	LREAL:=0;
+	vYCartesianToMotors 	AT%I*:	LREAL:=0;
+	vThetaCartesianToMotors AT%I*:	LREAL:=0;
+	bumper	   				AT%I*:	BOOL:=0;
+	bumperStopReset 		AT%I*: 	BOOL:=0;
+	
+	//Outputs: Motor Values and Enable Signal
+	enableToMotor1 AT%Q*:BOOL:=FALSE;
+	enableToMotor2 AT%Q*:BOOL:=FALSE;
+	enableToMotor3 AT%Q*:BOOL:=FALSE;
+	
+	velocityToMotor1ug:LREAL:=0;
+	velocityToMotor2ug:LREAL:=0;
+	velocityToMotor3ug:LREAL:=0;
+	
+	velocityToMotor1 AT%Q*:INT:=0;
+	velocityToMotor2 AT%Q*:INT:=0;
+	velocityToMotor3 AT%Q*:INT:=0;
+	
+	maxMotorRPM : INT := 3600; // in rpm 
+	rWheel 		: INT := 40; //in mm
+	i			: LREAL := 0.0625; //gearbox 
+	
+	
+	counter: ULINT;
+	Test: LREAL;
+	
+	Pn1: LREAL;
+	velWheel1: LREAL;
+	velThetaRobot: LREAL;
+	velXk: LREAL;
+	velyk: LREAL;
+	veltk: LREAL;
+	
+	startup: BOOL := True;
+	vinx: LREAL;
+	viny: LREAL;
+	vint: LREAL;
+
+	gvelxk: LREAL;
+	gvelyk : LREAL; 
+	gveltk: LREAL; 
+	
+	tf : LREAL := 0.01;
+	
+	inputDrehzahl : LREAL := 0.0; // Eingangssignal (springende Drehzahl)
+    smoothedDrehzahl : LREAL := 0.0; // Gefilterte Drehzahl
+	
+	avg_sig_y : LREAL;
+	avg_sig_x: LREAL;
+	avg_sig_t: LREAL;
+	avg_sig: LREAL; 
+	vglvel1: LREAL;
+	
+	test1 : BOOL := FALSE; 
+	test2 : BOOL := FALSE;
+END_VAR
+VAR CONSTANT
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SollVelo:= Main.getSollVelo(); // mm/s
+
+IF startup THEN
+	vx := 0;
+	vy := 0; 
+	vtheta := 0; 
+	startup :=FALSE;
+
+	vel.n1 := 0;
+	vel.n2 := 0; 
+	vel.n3 := 0;	
+END_IF
+
+vX:=-SollVelo.x; 			// mm/s
+vY:=-SollVelo.y; 			// mm/s
+vTheta:=-SollVelo.theta; 	// rad/s 
+
+
+////////////////////////////////////
+
+// Calculation of wheel and robot velocities from motorvelocities
+vel.n1 := UINT_TO_INT(IstVelo_n1)/10000.0*maxMotorRPM/60*i*2*PI*rWheel;
+vel.n2 := UINT_TO_INT(IstVelo_n2)/10000.0*maxMotorRPM/60*i*2*PI*rWheel;
+vel.n3 := UINT_TO_INT(IstVelo_n3)/10000.0*maxMotorRPM/60*i*2*PI*rWheel;
+
+// Uint 16 geht bis 65535, Problem : sprünge und signalrauschen.////////////////
+//Signalrauschen und Filter 
+
+velxk :=(vel.n3 - vel.n1) / (2.0 * COS(30.0*PI/180));  			    //in mm / s
+velyk:=((vel.n1 - 2.0 * vel.n2 + vel.n3) / 3.0);            		//in mm / (-1)*
+veltk:=(vel.n1 + vel.n2 + vel.n3) / (3.0 * 135.0);    				//in rad / s
+
+//Glätten der werte
+
+gvelxk := SmoothSignal(velxk, gvelxk); 
+gvelyk := SmoothSignal(velyk, gvelyk);
+gveltk := SmoothSignal(veltk, gveltk);
+
+IstVelo.x := -velxk;
+istvelo.y := -velyk;
+istvelo.theta := -veltk;
+
+Main.SetistVelo(istVelo); 
+////////////////////////////////////////////////
+	
+// Vx Regler 
+	e.x := vX- gvelxk;
+	
+	nx.KP := vxr.KP * e.x;
+	
+	IF ABS(e.x) < pos_out_wind  THEN   
+		nx.KI := nx.KI + vxr.KI*e.x*T;
+	ELSIF ABS(e.x) > pos_out_wind  THEN
+		nx.KI := (e.x/ABS(e.x))*pos_out_wind;
+	END_IF 
+
+	vinx := nx.KI+ nx.KP ; // gesch in x
+
+// Vy Regler 
+	e.y := vY- gvelyk;
+	
+	ny.KP := vyr.KP * e.y;
+	
+	IF ABS(e.y) < pos_out_wind   THEN   
+		ny.KI := ny.KI + vyr.KI*e.y*T;	
+	ELSIF ABS(e.y) > pos_out_wind  THEN
+		ny.KI := (e.y/ABS(e.y))*pos_out_wind;	
+	END_IF 
+	
+	viny := ny.KI+ ny.KP ; // gesch in y	
+	
+// Vt Regler 
+	e.theta := vTheta- gveltk;
+	
+	nt.KP := vtr.KP * e.theta;
+
+	IF ABS(e.theta)< (pos_out_wind*0.03578)  THEN    // umrechnung !
+		nt.KI := nt.KI + vtr.KI*e.theta*T;
+		test1 := TRUE;
+	ELSIF ABS (e.theta) > (pos_out_wind*0.03578)  THEN
+		nt.KI := (e.theta/ABS(e.theta))*pos_out_wind*0.03578;
+		test2 := TRUE;
+	END_IF 
+	
+	vint := nt.KI+ nt.KP ; // gesch in t
+
+
+velocityMotor1 := (-vinx * COS(30.0*PI/180))	+ (viny * COS(60.0*PI/180))	+ (vint * 135.0);
+velocityMotor2 := 0.0						+ (-vinY)						+ (vint * 135.0);
+velocityMotor3 := (vinX * COS(30.0*PI/180))	+ (vinY * COS(60.0*PI/180))	+ (vint * 135.0);
+
+IF (velocityMotor1 > velocityMax) OR (velocityMotor1 < -velocityMax) THEN
+	velocityMotorsTf:= velocityMotor1;
+	
+	// sign(velocityMotorsTf/ABS(velocityMotorsTf) = velocityMotorsTf/ABS(velocityMotorsTf)
+	// => Fallunterscheidung wg. Polstelle in sign nicht notwendig: velocityMotorsTf == 0 nur möglich wenn velocityMax = 0 
+    velocityMotor1:= velocityMotorsTf/ABS(velocityMotorsTf)*velocityMax;
+    velocityMotor2:= velocityMotorsTf/ABS(velocityMotorsTf)*velocityMax/velocityMotorsTf * velocityMotor2 ;
+    velocityMotor3:= velocityMotorsTf/ABS(velocityMotorsTf)*velocityMax/velocityMotorsTf * velocityMotor3 ;
+END_IF
+
+IF (velocityMotor2 > velocityMax) OR (velocityMotor2 < -velocityMax) THEN
+    velocityMotorsTf:= velocityMotor2;
+
+	// sign(velocityMotorsTf/ABS(velocityMotorsTf) = velocityMotorsTf/ABS(velocityMotorsTf)
+	// => Fallunterscheidung wg. Polstelle in sign nicht notwendig: velocityMotorsTf == 0 nur möglich wenn velocityMax = 0 
+    velocityMotor1:= velocityMotorsTf/ABS(velocityMotorsTf)*velocityMax/velocityMotorsTf * velocityToMotor1;
+    velocityMotor2:= velocityMotorsTf/ABS(velocityMotorsTf)*velocityMax;
+    velocityMotor3:= velocityMotorsTf/ABS(velocityMotorsTf)*velocityMax/velocityMotorsTf * velocityToMotor3;
+END_IF
+
+IF (velocityMotor3 > velocityMax) OR (velocityMotor3 < -velocityMax) THEN
+    velocityMotorsTf:= velocityMotor3;
+
+	// sign(velocityMotorsTf/ABS(velocityMotorsTf) = velocityMotorsTf/ABS(velocityMotorsTf)
+	// => Fallunterscheidung wg. Polstelle in sign nicht notwendig: velocityMotorsTf == 0 nur möglich wenn velocityMax = 0 
+    velocityMotor1:= velocityMotorsTf/ABS(velocityMotorsTf)*velocityMax/velocityMotorsTf * velocityMotor1;
+    velocityMotor2:= velocityMotorsTf/ABS(velocityMotorsTf)*velocityMax/velocityMotorsTf * velocityMotor2 ;
+    velocityMotor3:= velocityMotorsTf/ABS(velocityMotorsTf)*velocityMax;
+END_IF
+// Konvertierung ToMotors ENDE********************************************************
+
+
+//MOTORANSTEUERUNG Zustandsautomat
+CASE state OF
+	CoreDriveState.init:						
+						IF NOT bumper AND NOT bumperStopReset THEN
+								WHILE nCycleTime <=0 DO
+									fbGetCurTaskIdx();
+									nCycleTime := _TaskInfo[fbGetCurTaskIdx.index].CycleTime; //multiplier of 100ns
+									diffConst := UDINT_TO_LREAL(nCycleTime) * 0.0000001; //
+									END_WHILE
+							state:=CoreDriveState.drive;
+						END_IF
+						
+	CoreDriveState.drive:
+						IF velocityMotor1>=0 THEN
+							velocitytomotor1 :=LREAL_TO_INT(velocityMotor1*skalPos);
+						ELSE
+							velocitytomotor1 :=LREAL_TO_INT(velocityMotor1*skalNeg);
+						END_IF
+						
+						IF velocityMotor2>=0 THEN
+							velocitytomotor2 :=LREAL_TO_INT(velocityMotor2*skalPos);
+						ELSE
+							velocitytomotor2 :=LREAL_TO_INT(velocityMotor2*skalNeg);
+						END_IF
+						
+						IF velocityMotor3>=0 THEN
+							velocitytomotor3 :=LREAL_TO_INT(velocityMotor3*skalPos);
+						ELSE
+							velocitytomotor3 :=LREAL_TO_INT(velocityMotor3*skalNeg);
+						END_IF
+							
+							enableToMotor1:=1;
+							enableToMotor2:=1;
+							enableToMotor3:=1;
+							
+						IF bumper=TRUE THEN
+							state:=CoreDriveState.BumperStop;
+						END_IF
+
+	CoreDriveState.BumperStop:
+						velocityToMotor1:=0;
+						velocityToMotor2:=0;
+						velocityToMotor3:=0;
+						enableToMotor1:=0;
+						enableToMotor2:=0;
+						enableToMotor3:=0;
+						
+						IF NOT bumper AND bumperStopReset THEN
+							state := CoreDriveState.Init;
+						END_IF
+	ELSE
+		state:=CoreDriveState.init;
+END_CASE
+]]></ST>
+    </Implementation>
+    <Method Name="SmoothSignal" Id="{62586b80-43b5-4fea-ba38-2b2ef90db25b}">
+      <Declaration><![CDATA[METHOD SmoothSignal : LREAL
+VAR_INPUT
+    newValue : LREAL; // Neuer Wert, der in den Puffer aufgenommen wird
+    avg_sig : LREAL; 
+END_VAR
+VAR
+	k : LREAL := 0.15; //0.15
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+avg_sig := avg_sig +(k *(newvalue - avg_sig));
+smoothsignal := avg_sig;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="DrehzahlRegler">
+      <LineId Id="958" Count="63" />
+      <LineId Id="1296" Count="0" />
+      <LineId Id="1022" Count="1" />
+      <LineId Id="1297" Count="0" />
+      <LineId Id="1024" Count="1" />
+      <LineId Id="1302" Count="0" />
+      <LineId Id="1026" Count="26" />
+      <LineId Id="1312" Count="0" />
+      <LineId Id="1054" Count="0" />
+      <LineId Id="1303" Count="0" />
+      <LineId Id="1055" Count="1" />
+      <LineId Id="1304" Count="0" />
+      <LineId Id="1306" Count="0" />
+      <LineId Id="1058" Count="108" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="DrehzahlRegler.SmoothSignal">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

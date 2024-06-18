@@ -1,0 +1,139 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="fb_DockingPath" Id="{205fc831-5434-4173-8581-b412854122c9}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK fb_DockingPath
+VAR_INPUT
+	NewWPList: BOOL;
+	Modus:INT; // 1 Wegpunktliste Ausparken 2 Wegpunktliste einparken 3 Wegpunktliste umparkten 4 Wegpunktliste Dummy
+	IstStation : INT;
+	SollStation: INT;
+	IstTasche: INT;
+	SollTasche: INT;
+	
+END_VAR
+VAR_OUTPUT
+WayPointList: ARRAY [1..10] OF RobotSollPose;
+END_VAR
+VAR
+	// Laufindex
+	i: INT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Nullsetzen des Array's 
+IF NewWPlist THEN
+	FOR i:=1 TO 10 BY 1 DO
+		WayPointList[i].x:=0;
+		WayPointList[i].y:=0;
+		WayPointList[i].theta:=0;
+		WayPointList[i].m:=0;
+	END_FOR
+	CASE Modus OF
+			1: //Wegpunktliste Ausfahren
+			IF IstStation <= 4 THEN
+				WayPointList[1].x:=.Var_HAWIno.Stations_Global[IstStation].EntryPOSX;
+				WayPointList[1].y:=.Var_HAWIno.Stations_Global[IstStation].Taschen[IstTasche].DESTY;
+				WayPointList[1].theta:=.Var_HAWIno.Stations_Global[IstStation].Theta;
+				WayPointList[1].m:=6;
+				WayPointList[2].x:=.Var_HAWIno.Stations_Global[IstStation].EntryPOSX;
+				WayPointList[2].y:=.Var_HAWIno.Stations_Global[IstStation].ExitY;
+				WayPointList[2].theta:=1.57;
+				WayPointList[2].m:=6;
+				WayPointList[3].x:=.Var_HAWIno.Stations_Global[IstStation].ExitX-200;
+				WayPointList[3].y:=.Var_HAWIno.Stations_Global[IstStation].ExitY;
+				WayPointList[3].theta:=1.57;
+				WayPointList[3].m:=6;
+				WayPointList[4].x:=.Var_HAWIno.Stations_Global[IstStation].ExitX-100;
+				WayPointList[4].y:=.Var_HAWIno.Stations_Global[IstStation].ExitY;
+				WayPointList[4].theta:=1.57;
+				WayPointList[4].m:=6;
+				WayPointList[5].x:=.Var_HAWIno.Stations_Global[IstStation].ExitX;
+				WayPointList[5].y:=.Var_HAWIno.Stations_Global[IstStation].ExitY;
+				WayPointList[5].theta:=1.57;
+				WayPointList[5].m:=6;
+			ELSIF IstStation>=5 AND IstStation<=8 THEN
+				WayPointList[1].x:=.Var_HAWIno.Stations_Global[IstStation].EntryPOSX;
+				WayPointList[1].y:=.Var_HAWIno.Stations_Global[IstStation].Taschen[IstTasche].DESTY;
+				WayPointList[1].theta:=.Var_HAWIno.Stations_Global[IstStation].Theta;
+				WayPointList[1].m:=6;
+				WayPointList[2].x:=.Var_HAWIno.Stations_Global[IstStation].EntryPOSX;
+				WayPointList[2].y:=.Var_HAWIno.Stations_Global[IstStation].ExitY;
+				WayPointList[2].theta:=1.57;
+				WayPointList[2].m:=6;
+				WayPointList[3].x:=.Var_HAWIno.Stations_Global[IstStation].ExitX;
+				WayPointList[3].y:=.Var_HAWIno.Stations_Global[IstStation].ExitY;
+				WayPointList[3].theta:=1.57;
+				WayPointList[3].m:=6;
+				WayPointList[4].x:=.Var_HAWIno.Stations_Global[IstStation].ExitX + 25;
+				WayPointList[4].y:=.Var_HAWIno.Stations_Global[IstStation].EntryPOSY+25;
+				WayPointList[4].theta:=1.57;
+				WayPointList[4].m:=6;
+				WayPointList[5].x:=.Var_HAWIno.Stations_Global[IstStation].ExitX + 50;
+				WayPointList[5].y:=.Var_HAWIno.Stations_Global[IstStation].EntryPOSY;
+				WayPointList[5].theta:=1.57;
+				WayPointList[5].m:=6;
+			ELSIF IstStation>8 THEN
+				WayPointList[1].x:=.Var_HAWIno.Stations_Global[IstStation].Taschen[IstTasche].DESTX;
+				WayPointList[1].y:=.Var_HAWIno.Stations_Global[IstStation].EntryPOSY+100;
+				WayPointList[1].theta:=.Var_HAWIno.Stations_Global[IstStation].Theta;
+				WayPointList[1].m:=6;
+				WayPointList[2].x:=.Var_HAWIno.Stations_Global[IstStation].EntryPOSX;
+				WayPointList[2].y:=.Var_HAWIno.Stations_Global[IstStation].EntryPOSY;
+				WayPointList[2].theta:=1.57;
+				WayPointList[2].m:=6;
+			END_IF
+				
+			2: // Wegpunktliste Einfahren
+			IF SollStation <= 8 THEN
+				WayPointList[1].x:=.Var_HAWIno.Stations_Global[SollStation].EntryPOSX;
+				WayPointList[1].y:=.Var_HAWIno.Stations_Global[SollStation].Taschen[SollTasche].DESTY-300;
+				WayPointList[1].theta:=.Var_HAWIno.Stations_Global[SollStation].Theta;
+				WayPointList[1].m:=6;
+				WayPointList[2].x:=.Var_HAWIno.Stations_Global[SollStation].EntryPOSX;
+				WayPointList[2].y:=.Var_HAWIno.Stations_Global[SollStation].Taschen[SollTasche].DESTY;
+				WayPointList[2].theta:=.Var_HAWIno.Stations_Global[SollStation].Theta;
+				WayPointList[2].m:=2;
+				WayPointList[3].x:=.Var_HAWIno.Stations_Global[SollStation].Taschen[SollTasche].DESTX;
+				WayPointList[3].y:=.Var_HAWIno.Stations_Global[SollStation].Taschen[SollTasche].DESTY;
+				WayPointList[3].theta:=.Var_HAWIno.Stations_Global[SollStation].Taschen[SollTasche].Theta;
+				WayPointList[3].m:=1;
+			ELSIF SollStation>8 THEN
+				WayPointList[1].x:=.Var_HAWIno.Stations_Global[SollStation].EntryPOSX;
+				WayPointList[1].y:=.Var_HAWIno.Stations_Global[SollStation].EntryPOSY;
+				WayPointList[1].theta:=PI / 2.0;
+				WayPointList[1].m:=6;
+				WayPointList[3].x:=.Var_HAWIno.Stations_Global[SollStation].Taschen[SollTasche].DESTX;
+				WayPointList[3].y:=(.Var_HAWIno.Stations_Global[SollStation].Taschen[SollTasche].DESTY-15);
+				WayPointList[3].theta:=.Var_HAWIno.Stations_Global[SollStation].Theta;
+				WayPointList[3].m:=2;
+				WayPointList[4].x:=.Var_HAWIno.Stations_Global[SollStation].Taschen[SollTasche].DESTX;
+				WayPointList[4].y:=.Var_HAWIno.Stations_Global[SollStation].Taschen[SollTasche].DESTY;
+				WayPointList[4].theta:=.Var_HAWIno.Stations_Global[SollStation].Theta;
+				WayPointList[4].m:=5;
+			END_IF
+			3: // Wegpunktliste Umparken
+			WayPointList[1].x:=.Var_HAWIno.Stations_Global[IstStation].EntryPOSX;
+			WayPointList[1].y:=.Var_HAWIno.Stations_Global[IstStation].Taschen[IstTasche].DESTY;
+			WayPointList[1].theta:=.Var_HAWIno.Stations_Global[IstStation].Theta;
+			WayPointList[1].m:=6;
+			WayPointList[2].x:=.Var_HAWIno.Stations_Global[IstStation].EntryPOSX;
+			WayPointList[2].y:=.Var_HAWIno.Stations_Global[IstStation].Taschen[SollTasche].DESTY;
+			WayPointList[2].theta:=.Var_HAWIno.Stations_Global[IstStation].Theta;
+			WayPointList[2].m:=6;
+			WayPointList[3].x:=.Var_HAWIno.Stations_Global[IstStation].EntryPOSX;
+			WayPointList[3].y:=.Var_HAWIno.Stations_Global[IstStation].Taschen[SollTasche].DESTY;
+			WayPointList[3].theta:=.Var_HAWIno.Stations_Global[IstStation].Taschen[SollTasche].Theta;
+			WayPointList[3].m:=2;
+			WayPointList[4].x:=.Var_HAWIno.Stations_Global[IstStation].Taschen[SollTasche].DESTX;
+			WayPointList[4].y:=.Var_HAWIno.Stations_Global[IstStation].Taschen[SollTasche].DESTY;
+			WayPointList[4].theta:=.Var_HAWIno.Stations_Global[IstStation].Taschen[SollTasche].Theta;
+			WayPointList[4].m:=1;
+		END_CASE
+	END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="fb_DockingPath">
+      <LineId Id="3" Count="108" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

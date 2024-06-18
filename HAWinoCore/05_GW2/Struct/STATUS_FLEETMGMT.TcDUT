@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <DUT Name="STATUS_FLEETMGMT" Id="{75be0957-55d4-4a60-a023-b1886d645495}">
+    <Declaration><![CDATA[TYPE STATUS_FLEETMGMT :
+STRUCT
+	DrivingJob 	: ARRAY[1..2] OF INT;	// {"Logged": TRUE}, 		{"Logged": FALSE}			(Rückmeldung das Robo angemeldet ist)
+	JobId		: INT;					// {"JobId": 1}
+	Logged 		: BOOL;                 // {"Unlogging": TRUE},		{"Unlogging": FALSE}		(Meldung zum Herunterfahren)
+	//Unlogging 	: BOOL;                 // {"DrivingJob": [0 0]}								(Neuer Fahrauftrag [Station[1-10] Tasche[1-3])
+	Wait 		: BOOL;                 // {"Wait": TRUE},			{"Wait": FALSE}				(Anweisung zum Warten auf der aktuellen Position)
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,484 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="Main" Id="{000539c9-06b7-4317-a60e-77c5894f0e72}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM Main
+VAR
+	//Konfiguration
+	Dummy : BOOL := FALSE; //True wenn Dummy laufen soll. FALSE wenn Programm laufen soll
+	
+	
+	//Weltframe
+	pSollPose : POINTER TO RobotSollPose;
+	SollPose : RobotSollPose;
+	
+	allIstPosArray : ARRAY[1..8] OF RobotPose;
+	IstPoseCamera : RobotPose;				//kommt von der Kamera, geht zum Beobachter
+	IstPoseCameraOhne0 : RobotPose;			//Nur als Plotvariable
+	IstPose : RobotPose;					//kommt von Beobachter, Die offizielle IstPose
+	
+	//Roboframe
+	SollVelo : RobotPose;
+	IstVeloKlemme :RobotPose;
+
+	IstVeloEnc : RobotPose;					//kommt von Wheelencoders, geht zu Beobachter
+	
+	//Bumper
+	Bumperaktiv : BOOL;
+	
+	// Zu Gripper 
+	GripperSollClose : BOOL := 0;
+	GripperIstClose : BOOL := 0;
+	GripperSliderAusgeloest : BOOL := 0;
+	GripperLSAusgeloest : BOOL := 0;
+	
+	StationIstConnected : BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[//Nur zum Plotten
+IF	istPoseCamera.x <> 0 THEN
+IstPoseCameraOhne0 := IstPoseCamera;
+END_IF]]></ST>
+    </Implementation>
+    <Method Name="absToDynTheta" Id="{63370cd3-f23f-4ee5-9f79-7d0a25804bbc}">
+      <Declaration><![CDATA[METHOD absToDynTheta : LREAL
+VAR_INPUT
+	absolutThetaSoll : LREAL;
+	absolutThetaIst : LREAL;
+END_VAR
+
+VAR_OUTPUT
+	dynamicThetaSoll : LREAL;
+END_VAR
+
+VAR CONSTANT
+	PI : LREAL := 3.1415;
+END_VAR
+VAR
+	dTheta: LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(* Konvertiert einen sollTheta Wert -Pi bis - PI in einen +2Pi bis - 2Pi abhängig von der Distanz.
+	So dreht sich der Robitino immer zum Kürzeren Drehwinkel in richtung Sollwinkel *) 
+
+dTheta := absolutThetaSoll - absolutThetaIst;
+
+IF dTheta > PI  THEN
+	absToDynTheta := dTheta - 2*PI;
+	
+ELSIF dTheta < -PI THEN
+	absToDynTheta := dTheta + 2*PI;
+	
+ELSE
+	absToDynTheta := dTheta;
+END_IF
+RETURN;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="closeGripper" Id="{e0bf2792-67a9-4408-9a4f-981b57420d3c}">
+      <Declaration><![CDATA[METHOD closeGripper : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GripperSollClose := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getBumperAktiv" Id="{1569796a-3828-4df0-aeda-e56ab0bc03ab}">
+      <Declaration><![CDATA[METHOD getBumperAktiv : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getBumperaktiv := Bumperaktiv;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getGripperistClosed" Id="{422a386d-d5e2-4c49-90cc-36b960df4459}">
+      <Declaration><![CDATA[METHOD getGripperistClosed : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getGripperistClosed := GripperIstClose;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getGripperLSAusgeloest" Id="{4a372f8a-6901-466d-8544-3dc3deef8426}">
+      <Declaration><![CDATA[METHOD getGripperLSAusgeloest : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getGripperLSAusgeloest := GripperLSAusgeloest;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getGripperSliderAusgeloest" Id="{b10a26e1-3b91-4eb0-84b0-ca3f3e848c55}">
+      <Declaration><![CDATA[METHOD getGripperSliderAusgeloest : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getGripperSliderAusgeloest := GripperSliderAusgeloest;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getGripperSollClose" Id="{4a8a3c33-362a-42b4-89c0-960e6b822ac6}">
+      <Declaration><![CDATA[METHOD getGripperSollClose : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getGripperSollClose := GripperSollClose;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getIstPose" Id="{661b8689-a214-4bf1-87c2-c70b7fb3e145}">
+      <Declaration><![CDATA[METHOD getIstPose : RobotPose
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getIstPose := IstPose;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getIstPoseCamera" Id="{aaa0b453-77e2-4ce4-a7e3-020dee4d72f4}">
+      <Declaration><![CDATA[METHOD getIstPoseCamera : RobotPose
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getIstPoseCamera := IstPoseCamera;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getIstVeloEnc" Id="{9b6b5688-1aff-4260-8ff1-19db53a14642}">
+      <Declaration><![CDATA[METHOD getIstVeloEnc : RobotPose
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getIstVeloEnc := istVeloEnc;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getSollPose" Id="{ca75675e-82ba-4b4d-90de-ba69ac754013}">
+      <Declaration><![CDATA[METHOD getSollPose : RobotSollPose
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getSollPose := SollPose;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getSollVelo" Id="{a069e554-b910-4b95-a12b-1d59a30cbeb5}">
+      <Declaration><![CDATA[METHOD getSollVelo : RobotPose
+
+VAR
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getSollVelo:=SollVelo;
+RETURN;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getStationIstConnected" Id="{17808e20-ca79-4886-8584-a65623236247}">
+      <Declaration><![CDATA[METHOD getStationIstConnected : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getStationIstConnected := StationIstConnected;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="istStillstand" Id="{401b72c9-ea8c-4db3-bd42-77b7d3a7597f}">
+      <Declaration><![CDATA[METHOD istStillstand : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF SollPose.m = 0 THEN
+	istStillstand := 1;
+ELSE
+	istStillstand := 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="nextSollPose" Id="{9e88087a-0a54-4a0c-a592-d5d22d0d7a48}">
+      <Declaration><![CDATA[METHOD nextSollPose : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF SollPose.y <> 0 THEN
+	pSollPose := pSollPose + SIZEOF(RobotSollPose);
+	SollPose := pSollPose^;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="openGripper" Id="{f8476f2d-43eb-4732-8c09-57e053050d6e}">
+      <Declaration><![CDATA[METHOD openGripper : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GripperSollClose := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setBumperAktiv" Id="{0a32ea89-81ba-4373-b455-1b66a5f8c0f8}">
+      <Declaration><![CDATA[METHOD setBumperAktiv : BOOL
+VAR_INPUT
+	input : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Bumperaktiv := input;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetGripper" Id="{fe0f517d-d527-4187-8760-b4f46fb6aab1}">
+      <Declaration><![CDATA[METHOD SetGripper : BOOL
+VAR_INPUT
+	status : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GripperSollClose:= status;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setGripperIstClosed" Id="{a54c014a-0b35-42be-9f80-a414c01d1f29}">
+      <Declaration><![CDATA[METHOD setGripperIstClosed : BOOL
+VAR_INPUT
+	GripperClosed : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GripperIstClose := GripperClosed;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setGripperLSAusgeloest" Id="{a7b8d1a0-1e61-49f9-a350-a1c50ceae4d0}">
+      <Declaration><![CDATA[METHOD setGripperLSAusgeloest : BOOL
+VAR_INPUT
+	input : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GripperLSAusgeloest := input;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setGripperSliderAusgeloest" Id="{20a14388-00ea-4362-88d3-7afda8f1c0b9}">
+      <Declaration><![CDATA[METHOD setGripperSliderAusgeloest : BOOL
+VAR_INPUT
+	Input : BOOL; //True wenn endlage erreicht, False wenn nicht
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GripperSliderAusgeloest := input;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetGripperSollClose" Id="{89689b6c-3f0e-421f-99e9-d54b108164d4}">
+      <Declaration><![CDATA[METHOD SetGripperSollClose : BOOL
+VAR_INPUT
+	input : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GripperSollClose := input;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setIstPose" Id="{35c534dc-15db-433b-adbd-8a5e40f0c4b7}">
+      <Declaration><![CDATA[METHOD setIstPose : BOOL
+VAR_INPUT
+	newIstPose : RobotPose;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF newIstPose.y <> 0 THEN
+	istPose := newIstPose;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setIstPoseCamera" Id="{965a365e-e5ba-41fa-b424-e31d8007661d}">
+      <Declaration><![CDATA[METHOD setIstPoseCamera : BOOL
+VAR_INPUT
+	PoseArray : ARRAY[1..8] OF RobotPose;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(* Liest die richtige Kameraposition Position des Roboters aus
+*)
+
+allIstPosArray := PoseArray;
+IstPoseCamera := PoseArray[Var_HAWIno.Robot_Number];
+
+setIstPoseCamera := 1;	//Rückgabe, dass das Zuweisen erfolgreich war
+RETURN;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetistVelo" Id="{c106ac3b-a4cd-43f3-80b0-34c0546bad11}">
+      <Declaration><![CDATA[METHOD SetistVelo : BOOL
+VAR_INPUT
+	input : RobotPose;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IstVeloKlemme:=input;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setIstVeloEnc" Id="{b83dbb20-fe50-4129-b7a4-3ed4862ce075}">
+      <Declaration><![CDATA[METHOD setIstVeloEnc : BOOL
+VAR_INPUT
+	IstVelo : RobotPose;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IstVeloEnc := IstVelo;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setSollPoseArray" Id="{4df809eb-bfb4-46d2-ab04-35704d80b4f3}">
+      <Declaration><![CDATA[METHOD setSollPoseArray : BOOL
+VAR_INPUT
+	pSollPoseArray : POINTER TO RobotSollPose;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pSollPose := pSollPoseArray;
+SollPose := pSollPose^;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetSollVelo" Id="{92ef6d32-950a-4633-9000-9da030801acf}">
+      <Declaration><![CDATA[METHOD SetSollVelo : Bool
+VAR_INPUT
+	InputVelo: RobotPose;
+END_VAR
+
+VAR
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[SollVelo := InputVelo;
+RETURN;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setStationIstConnected" Id="{3a38c6c0-6cf8-46c5-8f63-fb22ddb8b930}">
+      <Declaration><![CDATA[METHOD setStationIstConnected : BOOL
+VAR_INPUT
+	input : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[StationIstConnected := input;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="updateSollPose" Id="{4e64fbed-6474-48d8-a0a4-1b1ccab63133}">
+      <Declaration><![CDATA[METHOD updateSollPose : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pSollPose := pSollPose + SIZEOF(RobotSollPose);
+SollPose := pSollPose^;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="Main">
+      <LineId Id="5" Count="3" />
+    </LineIds>
+    <LineIds Name="Main.absToDynTheta">
+      <LineId Id="3" Count="13" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.closeGripper">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.getBumperAktiv">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.getGripperistClosed">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.getGripperLSAusgeloest">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.getGripperSliderAusgeloest">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.getGripperSollClose">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.getIstPose">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.getIstPoseCamera">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.getIstVeloEnc">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.getSollPose">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.getSollVelo">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.getStationIstConnected">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.istStillstand">
+      <LineId Id="3" Count="3" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.nextSollPose">
+      <LineId Id="3" Count="2" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.openGripper">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.setBumperAktiv">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.SetGripper">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.setGripperIstClosed">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.setGripperLSAusgeloest">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.setGripperSliderAusgeloest">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.SetGripperSollClose">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.setIstPose">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.setIstPoseCamera">
+      <LineId Id="3" Count="7" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.SetistVelo">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.setIstVeloEnc">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.setSollPoseArray">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.SetSollVelo">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.setStationIstConnected">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="Main.updateSollPose">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

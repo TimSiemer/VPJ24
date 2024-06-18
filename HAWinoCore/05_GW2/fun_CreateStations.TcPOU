@@ -1,0 +1,796 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="fun_CreateStations" Id="{1483e909-77df-4c8b-93bf-1fc9834473eb}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION fun_CreateStations : Bool
+VAR_INPUT
+END_VAR
+VAR
+	j: INT:=1;
+	i: INT:=1;
+	ExitX1: LREAL;
+	ExitX2: INT;
+	ExitY: LREAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[ExitY:= 3400;
+ExitX1:= 5200;
+ExitX2:= 0400;
+
+IF Var_HAWIno.Robot_Number = 1 THEN
+
+// Einlesen der Daten der Entry X Positionen
+
+.Var_HAWIno.Stations_Global[1].EntryPOSX := 4965;
+.Var_HAWIno.Stations_Global[2].EntryPOSX := 4300;
+.Var_HAWIno.Stations_Global[3].EntryPOSX := 3800;
+.Var_HAWIno.Stations_Global[4].EntryPOSX := 3100;
+.Var_HAWIno.Stations_Global[5].EntryPOSX := 2600;
+.Var_HAWIno.Stations_Global[6].EntryPOSX := 1900;
+.Var_HAWIno.Stations_Global[7].EntryPOSX := 1500;
+.Var_HAWIno.Stations_Global[8].EntryPOSX := 700;
+.Var_HAWIno.Stations_Global[10].EntryPOSX := 6739;
+.Var_HAWIno.Stations_Global[9].EntryPOSX := 6120;
+.Var_HAWIno.Stations_Global[11].EntryPOSX := 0;
+.Var_HAWIno.Stations_Global[12].EntryPOSX := 0;
+
+// Einlesesn der Daten der Entry YPOS
+
+.Var_HAWIno.Stations_Global[1].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[2].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[3].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[4].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[5].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[6].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[7].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[8].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[9].EntryPOSY := 2800;	// von 3000 auf 2900 sonst Ziel in Hinderniss
+.Var_HAWIno.Stations_Global[10].EntryPOSY := 2800;
+.Var_HAWIno.Stations_Global[11].EntryPOSY := 0;
+.Var_HAWIno.Stations_Global[12].EntryPOSY := 0;
+
+//Definition Y Exit
+
+.Var_HAWIno.Stations_Global[1].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[2].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[3].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[4].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[5].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[6].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[7].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[8].ExitY := ExitY;
+
+
+.Var_HAWIno.Stations_Global[1].ExitX := ExitX1;
+.Var_HAWIno.Stations_Global[2].ExitX := ExitX1;
+.Var_HAWIno.Stations_Global[3].ExitX := ExitX1;
+.Var_HAWIno.Stations_Global[4].ExitX := ExitX1;
+.Var_HAWIno.Stations_Global[5].ExitX := ExitX2;
+.Var_HAWIno.Stations_Global[6].ExitX := ExitX2;
+.Var_HAWIno.Stations_Global[7].ExitX := ExitX2;
+.Var_HAWIno.Stations_Global[8].ExitX := ExitX2;
+
+//Einlesen der Daten Theta
+
+.Var_HAWIno.Stations_Global[1].Theta := 3.141;
+.Var_HAWIno.Stations_Global[2].Theta := 0;
+.Var_HAWIno.Stations_Global[3].Theta := 3.141;
+.Var_HAWIno.Stations_Global[4].Theta := 0;
+.Var_HAWIno.Stations_Global[5].Theta := 3.141;
+.Var_HAWIno.Stations_Global[6].Theta := 0;
+.Var_HAWIno.Stations_Global[7].Theta := 3.141;
+.Var_HAWIno.Stations_Global[8].Theta := 0;
+.Var_HAWIno.Stations_Global[9].Theta := 0.3385;
+.Var_HAWIno.Stations_Global[10].Theta := 0.3385;
+.Var_HAWIno.Stations_Global[11].Theta := 0;
+.Var_HAWIno.Stations_Global[12].Theta := 0;
+
+//Einlesen der Daten der Taschen RFD Reder
+i:=1;
+WHILE i<=14 DO
+	IF i<=8 THEN
+		.Var_HAWIno.Stations_Global[i].Taschen[3].RFID := TRUE;
+		.Var_HAWIno.Stations_Global[i].Taschen[2].RFID := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[1].RFID := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[3].Charger := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[2].Charger := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[1].Charger := FALSE;
+	ELSIF i>8 AND i<=10 THEN
+		.Var_HAWIno.Stations_Global[i].Taschen[3].RFID := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[2].RFID := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[1].RFID := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[3].Charger := TRUE;
+		.Var_HAWIno.Stations_Global[i].Taschen[2].Charger := TRUE;
+		.Var_HAWIno.Stations_Global[i].Taschen[1].Charger := TRUE;
+	END_IF
+	i:=i+1;
+END_WHILE
+
+// Definition der einzelnen Taschen Positionen
+	//Station 1
+	j:=1;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 4913;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2756-30;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta := 3.12;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 4915;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2857-30;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=3.12;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 4942;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2935;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=3.09;
+	//Station 2
+	j:=2;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 4455;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2735;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 4456;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2836;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 4454;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2937;
+		//Station 3
+	j:=3;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 3650;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2735;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 3650;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2843;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 3652;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2929;
+	//Station 4
+	j:=4;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 3240;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2735;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 3236;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2835;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 3230;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2937;
+	//Station 5
+	j:=5;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 2430;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2729;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 2506;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2830;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 2519;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2915;
+	//Station 6
+	j:=6;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 2097;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2678;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 2097;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2832;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 2102;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2933;
+		//Station 7
+	j:=7;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 1335;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2770;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 1336;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2851;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 1349;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2937;
+	//Station 8
+	j:=8;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 894;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2739;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 898;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2844;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 903;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2939;
+	//Charger 1
+	j:=10;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 6730; //6739;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY :=3500;// hier muss 3500
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX :=6739;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 3504;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 6739;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 3504;
+	//Charger 2
+	j:=9;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 6120;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY :=3500;		// hier muss 3500
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX :=6120;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 3500;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 6120;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 3500;
+	
+	
+
+	
+	//0,01745
+	ELSIF Var_HAWIno.Robot_Number =2 THEN
+		// Einlesen der Daten der Entry X Positionen
+
+			.Var_HAWIno.Stations_Global[1].EntryPOSX := 4965;
+			.Var_HAWIno.Stations_Global[2].EntryPOSX := 4300;
+			.Var_HAWIno.Stations_Global[3].EntryPOSX := 3800;
+			.Var_HAWIno.Stations_Global[4].EntryPOSX := 3100;
+			.Var_HAWIno.Stations_Global[5].EntryPOSX := 2600;
+			.Var_HAWIno.Stations_Global[6].EntryPOSX := 1900;
+			.Var_HAWIno.Stations_Global[7].EntryPOSX := 1500;
+			.Var_HAWIno.Stations_Global[8].EntryPOSX := 700;
+			.Var_HAWIno.Stations_Global[10].EntryPOSX := 6739;
+			.Var_HAWIno.Stations_Global[9].EntryPOSX := 6120;
+			.Var_HAWIno.Stations_Global[11].EntryPOSX := 0;
+			.Var_HAWIno.Stations_Global[12].EntryPOSX := 0;
+			
+			// Einlesesn der Daten der Entry YPOS
+			
+			.Var_HAWIno.Stations_Global[1].EntryPOSY := 2200;
+			.Var_HAWIno.Stations_Global[2].EntryPOSY := 2200;
+			.Var_HAWIno.Stations_Global[3].EntryPOSY := 2200;
+			.Var_HAWIno.Stations_Global[4].EntryPOSY := 2200;
+			.Var_HAWIno.Stations_Global[5].EntryPOSY := 2200;
+			.Var_HAWIno.Stations_Global[6].EntryPOSY := 2200;
+			.Var_HAWIno.Stations_Global[7].EntryPOSY := 2200;
+			.Var_HAWIno.Stations_Global[8].EntryPOSY := 2200;
+			.Var_HAWIno.Stations_Global[9].EntryPOSY := 2800;	// von 3000 auf 2900 sonst Ziel in Hinderniss
+			.Var_HAWIno.Stations_Global[10].EntryPOSY := 2800;
+			.Var_HAWIno.Stations_Global[11].EntryPOSY := 0;
+			.Var_HAWIno.Stations_Global[12].EntryPOSY := 0;
+
+				//Definition Y Exit
+				
+				.Var_HAWIno.Stations_Global[1].ExitY := ExitY;
+				.Var_HAWIno.Stations_Global[2].ExitY := ExitY;
+				.Var_HAWIno.Stations_Global[3].ExitY := ExitY;
+				.Var_HAWIno.Stations_Global[4].ExitY := ExitY;
+				.Var_HAWIno.Stations_Global[5].ExitY := ExitY;
+				.Var_HAWIno.Stations_Global[6].ExitY := ExitY;
+				.Var_HAWIno.Stations_Global[7].ExitY := ExitY;
+				.Var_HAWIno.Stations_Global[8].ExitY := ExitY;
+				
+				// Definition X Exit
+			
+				
+				.Var_HAWIno.Stations_Global[1].ExitX := ExitX1;
+				.Var_HAWIno.Stations_Global[2].ExitX := ExitX1;
+				.Var_HAWIno.Stations_Global[3].ExitX := ExitX1;
+				.Var_HAWIno.Stations_Global[4].ExitX := ExitX1;
+				.Var_HAWIno.Stations_Global[5].ExitX := ExitX2;
+				.Var_HAWIno.Stations_Global[6].ExitX := ExitX2;
+				.Var_HAWIno.Stations_Global[7].ExitX := ExitX2;
+				.Var_HAWIno.Stations_Global[8].ExitX := ExitX2;
+				
+				//Einlesen der Daten Theta
+				
+				.Var_HAWIno.Stations_Global[1].Theta := 3.141;
+				.Var_HAWIno.Stations_Global[2].Theta := 0;
+				.Var_HAWIno.Stations_Global[3].Theta := 3.141;
+				.Var_HAWIno.Stations_Global[4].Theta := 0;
+				.Var_HAWIno.Stations_Global[5].Theta := 3.141;
+				.Var_HAWIno.Stations_Global[6].Theta := 0;
+				.Var_HAWIno.Stations_Global[7].Theta := 3.141;
+				.Var_HAWIno.Stations_Global[8].Theta := 0;
+				.Var_HAWIno.Stations_Global[9].Theta := 0.3385;
+				.Var_HAWIno.Stations_Global[10].Theta := 0.3385;
+				.Var_HAWIno.Stations_Global[11].Theta := 0;
+				.Var_HAWIno.Stations_Global[12].Theta := 0;
+				
+				//Einlesen der Daten der Taschen RFD Reder
+				i:=1;
+				WHILE i<=14 DO
+					IF i<=8 THEN
+						.Var_HAWIno.Stations_Global[i].Taschen[3].RFID := TRUE;
+						.Var_HAWIno.Stations_Global[i].Taschen[2].RFID := FALSE;
+						.Var_HAWIno.Stations_Global[i].Taschen[1].RFID := FALSE;
+						.Var_HAWIno.Stations_Global[i].Taschen[3].Charger := FALSE;
+						.Var_HAWIno.Stations_Global[i].Taschen[2].Charger := FALSE;
+						.Var_HAWIno.Stations_Global[i].Taschen[1].Charger := FALSE;
+					ELSIF i>8 AND i<=10 THEN
+						.Var_HAWIno.Stations_Global[i].Taschen[3].RFID := FALSE;
+						.Var_HAWIno.Stations_Global[i].Taschen[2].RFID := FALSE;
+						.Var_HAWIno.Stations_Global[i].Taschen[1].RFID := FALSE;
+						.Var_HAWIno.Stations_Global[i].Taschen[3].Charger := TRUE;
+						.Var_HAWIno.Stations_Global[i].Taschen[2].Charger := TRUE;
+						.Var_HAWIno.Stations_Global[i].Taschen[1].Charger := TRUE;
+					END_IF
+					i:=i+1;
+				END_WHILE
+				
+				// Definition der einzelnen Taschen Positionen
+					//Station 1
+						j:=1;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 4913;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2756-30;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta := 3.12;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 4915;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2857-30;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=3.12;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 4942;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2935;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=3.09;
+				//Station 2
+						j:=2;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 4452;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2736;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta := -0.01;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 4452;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2840;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=-0.02;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 4453;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2941;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=-0.03;
+				//Station 3
+						j:=3;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 3653;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2731;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=3.13;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 3653;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2837;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=3.13;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 3655;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2938;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=3.14;
+				//Station 4
+						j:=4;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 3227;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2733;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=-0.01;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 3232;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2839;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=-0.02;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 3232;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2940;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=0;
+					//Station 5
+						j:=5;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 2490;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2730;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=3.13;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 2457;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2819;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=3.14;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 2510;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2934;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=3.13;
+					//Station 6
+						j:=6;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 2096;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2731;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=0;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 2097;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2829;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=0.01;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 2098;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2932;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=0.0;
+					//Station 7
+						j:=7;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 1305;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2735;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=3.13;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 1307;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2835;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=3.13;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 1307;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2934;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=3.136;
+				//Station 8
+						j:=8;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 891;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2735;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=0.01;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 892;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2840;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=-0.01;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 895;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2940;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=0;
+	//Charger 1
+	j:=10;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 6730; //6739;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY :=3500;// hier muss 3500
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX :=6739;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 3504;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 6739;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 3504;
+	//Charger 2
+	j:=9;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 6120;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY :=3500;		// hier muss 3500
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX :=6120;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 3500;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 6120;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 3500;
+	ELSIF Var_HAWIno.Robot_Number=3 THEN
+		// Einlesen der Daten der Entry X Positionen
+
+.Var_HAWIno.Stations_Global[1].EntryPOSX := 4965;
+.Var_HAWIno.Stations_Global[2].EntryPOSX := 4300;
+.Var_HAWIno.Stations_Global[3].EntryPOSX := 3800;
+.Var_HAWIno.Stations_Global[4].EntryPOSX := 3100;
+.Var_HAWIno.Stations_Global[5].EntryPOSX := 2600;
+.Var_HAWIno.Stations_Global[6].EntryPOSX := 1900;
+.Var_HAWIno.Stations_Global[7].EntryPOSX := 1500;
+.Var_HAWIno.Stations_Global[8].EntryPOSX := 700;
+.Var_HAWIno.Stations_Global[10].EntryPOSX := 6739;
+.Var_HAWIno.Stations_Global[9].EntryPOSX := 6120;
+.Var_HAWIno.Stations_Global[11].EntryPOSX := 0;
+.Var_HAWIno.Stations_Global[12].EntryPOSX := 0;
+
+// Einlesesn der Daten der Entry YPOS
+
+.Var_HAWIno.Stations_Global[1].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[2].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[3].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[4].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[5].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[6].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[7].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[8].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[9].EntryPOSY := 2800;	// von 3000 auf 2900 sonst Ziel in Hinderniss
+.Var_HAWIno.Stations_Global[10].EntryPOSY := 2800;
+.Var_HAWIno.Stations_Global[11].EntryPOSY := 0;
+.Var_HAWIno.Stations_Global[12].EntryPOSY := 0;
+
+//Definition Y Exit
+
+.Var_HAWIno.Stations_Global[1].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[2].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[3].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[4].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[5].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[6].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[7].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[8].ExitY := ExitY;
+
+// Definition X Exit
+
+
+.Var_HAWIno.Stations_Global[1].ExitX := ExitX1;
+.Var_HAWIno.Stations_Global[2].ExitX := ExitX1;
+.Var_HAWIno.Stations_Global[3].ExitX := ExitX1;
+.Var_HAWIno.Stations_Global[4].ExitX := ExitX1;
+.Var_HAWIno.Stations_Global[5].ExitX := ExitX2;
+.Var_HAWIno.Stations_Global[6].ExitX := ExitX2;
+.Var_HAWIno.Stations_Global[7].ExitX := ExitX2;
+.Var_HAWIno.Stations_Global[8].ExitX := ExitX2;
+
+//Einlesen der Daten Theta
+
+.Var_HAWIno.Stations_Global[1].Theta := 3.141;
+.Var_HAWIno.Stations_Global[2].Theta := 0;
+.Var_HAWIno.Stations_Global[3].Theta := 3.141;
+.Var_HAWIno.Stations_Global[4].Theta := 0;
+.Var_HAWIno.Stations_Global[5].Theta := 3.141;
+.Var_HAWIno.Stations_Global[6].Theta := 0;
+.Var_HAWIno.Stations_Global[7].Theta := 3.141;
+.Var_HAWIno.Stations_Global[8].Theta := 0;
+.Var_HAWIno.Stations_Global[9].Theta := 0.3385;
+.Var_HAWIno.Stations_Global[10].Theta := 0.3385;
+.Var_HAWIno.Stations_Global[11].Theta := 0;
+.Var_HAWIno.Stations_Global[12].Theta := 0;
+
+//Einlesen der Daten der Taschen RFD Reder
+i:=1;
+WHILE i<=14 DO
+	IF i<=8 THEN
+		.Var_HAWIno.Stations_Global[i].Taschen[3].RFID := TRUE;
+		.Var_HAWIno.Stations_Global[i].Taschen[2].RFID := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[1].RFID := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[3].Charger := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[2].Charger := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[1].Charger := FALSE;
+	ELSIF i>8 AND i<=10 THEN
+		.Var_HAWIno.Stations_Global[i].Taschen[3].RFID := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[2].RFID := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[1].RFID := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[3].Charger := TRUE;
+		.Var_HAWIno.Stations_Global[i].Taschen[2].Charger := TRUE;
+		.Var_HAWIno.Stations_Global[i].Taschen[1].Charger := TRUE;
+	END_IF
+	i:=i+1;
+END_WHILE
+
+// Definition der einzelnen Taschen Positionen
+					//Station 1
+						j:=1;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 4913;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2756-30;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta := 3.12;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 4915;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2857-30;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=3.12;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 4942;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2935;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=3.09;
+				//Station 2
+						j:=2;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 4452;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2736;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta := -0.01;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 4452;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2840;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=-0.02;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 4453;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2941;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=-0.03;
+				//Station 3
+						j:=3;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 3653;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2731;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=3.13;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 3653;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2837;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=3.13;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 3655;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2938;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=3.14;
+				//Station 4
+						j:=4;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 3227;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2733;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=-0.01;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 3232;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2839;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=-0.02;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 3232;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2940;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=0;
+					//Station 5
+						j:=5;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 2490;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2730;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=3.13;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 2457;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2819;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=3.14;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 2510;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2934;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=3.13;
+					//Station 6
+						j:=6;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 2096;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2731;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=0;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 2097;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2829;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=0.01;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 2098;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2932;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=0.0;
+					//Station 7
+						j:=7;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 1305;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2735;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=3.13;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 1307;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2835;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=3.13;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 1307;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2934;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=3.14; //3.136
+				//Station 8
+						j:=8;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 891;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2735;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=0.01;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 892;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2840;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=-0.01;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 895;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2940;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=0;
+	//Charger 1
+	j:=10;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 6730; //6739;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY :=3500;// hier muss 3500
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX :=6739;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 3504;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 6739;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 3504;
+	//Charger 2
+	j:=9;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 6120;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY :=3500;		// hier muss 3500
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX :=6120;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 3500;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 6120;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 3500;
+	ELSIF Var_HAWIno.Robot_Number = 4 THEN
+		// Einlesen der Daten der Entry X Positionen
+
+.Var_HAWIno.Stations_Global[1].EntryPOSX := 4965;
+.Var_HAWIno.Stations_Global[2].EntryPOSX := 4300;
+.Var_HAWIno.Stations_Global[3].EntryPOSX := 3800;
+.Var_HAWIno.Stations_Global[4].EntryPOSX := 3100;
+.Var_HAWIno.Stations_Global[5].EntryPOSX := 2600;
+.Var_HAWIno.Stations_Global[6].EntryPOSX := 1900;
+.Var_HAWIno.Stations_Global[7].EntryPOSX := 1500;
+.Var_HAWIno.Stations_Global[8].EntryPOSX := 700;
+.Var_HAWIno.Stations_Global[10].EntryPOSX := 6739;
+.Var_HAWIno.Stations_Global[9].EntryPOSX := 6120;
+.Var_HAWIno.Stations_Global[11].EntryPOSX := 0;
+.Var_HAWIno.Stations_Global[12].EntryPOSX := 0;
+
+// Einlesesn der Daten der Entry YPOS
+
+.Var_HAWIno.Stations_Global[1].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[2].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[3].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[4].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[5].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[6].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[7].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[8].EntryPOSY := 2200;
+.Var_HAWIno.Stations_Global[9].EntryPOSY := 2800;	// von 3000 auf 2900 sonst Ziel in Hinderniss
+.Var_HAWIno.Stations_Global[10].EntryPOSY := 2800;
+.Var_HAWIno.Stations_Global[11].EntryPOSY := 0;
+.Var_HAWIno.Stations_Global[12].EntryPOSY := 0;
+
+//Definition Y Exit
+
+.Var_HAWIno.Stations_Global[1].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[2].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[3].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[4].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[5].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[6].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[7].ExitY := ExitY;
+.Var_HAWIno.Stations_Global[8].ExitY := ExitY;
+
+// Definition X Exit
+
+
+.Var_HAWIno.Stations_Global[1].ExitX := ExitX1;
+.Var_HAWIno.Stations_Global[2].ExitX := ExitX1;
+.Var_HAWIno.Stations_Global[3].ExitX := ExitX1;
+.Var_HAWIno.Stations_Global[4].ExitX := ExitX1;
+.Var_HAWIno.Stations_Global[5].ExitX := ExitX2;
+.Var_HAWIno.Stations_Global[6].ExitX := ExitX2;
+.Var_HAWIno.Stations_Global[7].ExitX := ExitX2;
+.Var_HAWIno.Stations_Global[8].ExitX := ExitX2;
+
+//Einlesen der Daten Theta
+
+.Var_HAWIno.Stations_Global[1].Theta := 3.141;
+.Var_HAWIno.Stations_Global[2].Theta := 0;
+.Var_HAWIno.Stations_Global[3].Theta := 3.141;
+.Var_HAWIno.Stations_Global[4].Theta := 0;
+.Var_HAWIno.Stations_Global[5].Theta := 3.141;
+.Var_HAWIno.Stations_Global[6].Theta := 0;
+.Var_HAWIno.Stations_Global[7].Theta := 3.141;
+.Var_HAWIno.Stations_Global[8].Theta := 0;
+.Var_HAWIno.Stations_Global[9].Theta := 0.3385;
+.Var_HAWIno.Stations_Global[10].Theta := 0.3385;
+.Var_HAWIno.Stations_Global[11].Theta := 0;
+.Var_HAWIno.Stations_Global[12].Theta := 0;
+
+//Einlesen der Daten der Taschen RFD Reder
+i:=1;
+WHILE i<=14 DO
+	IF i<=8 THEN
+		.Var_HAWIno.Stations_Global[i].Taschen[3].RFID := TRUE;
+		.Var_HAWIno.Stations_Global[i].Taschen[2].RFID := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[1].RFID := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[3].Charger := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[2].Charger := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[1].Charger := FALSE;
+	ELSIF i>8 AND i<=10 THEN
+		.Var_HAWIno.Stations_Global[i].Taschen[3].RFID := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[2].RFID := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[1].RFID := FALSE;
+		.Var_HAWIno.Stations_Global[i].Taschen[3].Charger := TRUE;
+		.Var_HAWIno.Stations_Global[i].Taschen[2].Charger := TRUE;
+		.Var_HAWIno.Stations_Global[i].Taschen[1].Charger := TRUE;
+	END_IF
+	i:=i+1;
+END_WHILE
+
+// Definition der einzelnen Taschen Positionen
+					//Station 1
+						j:=1;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 4913;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2756-30;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta := 3.12;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 4915;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2857-30;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=3.12;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 4942;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2935;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=3.09;
+						
+				//Station 2
+						j:=2;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 4452;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2736;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta := -0.01;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 4452;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2840;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=-0.02;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 4453;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2941;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=-0.03;
+				//Station 3
+						j:=3;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 3653;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2731;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=3.13;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 3653;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2837;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=3.13;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 3655;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2938;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=3.14;
+				//Station 4
+						j:=4;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 3227;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2733;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=-0.01;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 3232;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2839;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=-0.02;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 3232;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2940;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=0;
+					//Station 5
+						j:=5;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 2490;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2730;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=3.13;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 2457;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2819;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=3.14;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 2510;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2934;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=3.13;
+					//Station 6
+						j:=6;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 2096;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2731;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=0;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 2097;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2829;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=0.01;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 2098;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2932;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=0.0;
+					//Station 7
+						j:=7;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 1305;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2735;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=3.13;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 1307;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2835;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=3.13;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 1307;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2934;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=3.136;
+				//Station 8
+						j:=8;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 891;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY := 2735;
+						.Var_HAWIno.Stations_Global[j].Taschen[1].Theta :=0.01;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX := 892;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 2840;
+						.Var_HAWIno.Stations_Global[j].Taschen[2].Theta :=-0.01;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 895;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 2940;
+						.Var_HAWIno.Stations_Global[j].Taschen[3].Theta :=0;
+	//Charger 1
+	j:=10;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 6730; //6739;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY :=3500;// hier muss 3500
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX :=6739;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 3504;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 6739;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 3504;
+	//Charger 2
+	j:=9;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTX := 6120;
+	.Var_HAWIno.Stations_Global[j].Taschen[1].DESTY :=3500;		// hier muss 3500
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTX :=6120;
+	.Var_HAWIno.Stations_Global[j].Taschen[2].DESTY := 3500;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTX := 6120;
+	.Var_HAWIno.Stations_Global[j].Taschen[3].DESTY := 3500; 
+	END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="fun_CreateStations">
+      <LineId Id="3" Count="95" />
+      <LineId Id="791" Count="7" />
+      <LineId Id="104" Count="560" />
+      <LineId Id="783" Count="7" />
+      <LineId Id="782" Count="0" />
+      <LineId Id="673" Count="93" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

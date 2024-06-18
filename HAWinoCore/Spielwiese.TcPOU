@@ -1,0 +1,88 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="Spielwiese" Id="{7de1fc00-76f3-4112-92bc-b24d13f2348c}" SpecialFunc="None">
+    <Declaration><![CDATA[(* 
+================== Spielwiese =====================
+heir kann rumgetobt werden. einfach sachen ausprobieren.
+Keine Funktionen reinschreiben, die für andere relevant sind!
+Der Code soll nur Lokal verwendet weren. Einfach Löschen
+*)
+
+PROGRAM Spielwiese
+VAR
+ Sekunde : TOF := (PT := T#5S);
+ n  : BOOL := 0;
+ 
+ bewegung :  RobotPose := (x := 200, y := 0, e := 0, theta := 0);
+ ///////////////////////////////
+ 
+ //3 Waypoints
+ startup : BOOL := FALSE;
+ W : ARRAY[1..3] OF RobotSollPose;
+ 
+	Waypointlist: ARRAY[1..7] OF RobotSollPose;
+	d2r: LREAL := (2*3.1415)/360;
+	NumberOfWayPoints: INT;
+	velo :RobotPose;
+	
+	vx: LREAL;
+	vy: LREAL;
+	vt: LREAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+IF startup THEN
+Waypointlist[1].x:=5000;
+Waypointlist[1].y:=1000;
+Waypointlist[1].theta:=180*d2r;
+Waypointlist[1].m:=3;
+Waypointlist[2].x:=5000;
+Waypointlist[2].y:=2100;
+Waypointlist[2].theta:=180*d2r;
+Waypointlist[2].m:=3;
+Waypointlist[3].x:=5000;
+Waypointlist[3].y:=1000;
+Waypointlist[3].theta:=0*d2r;
+Waypointlist[3].m:=3;
+Waypointlist[4].x:=5000;
+Waypointlist[4].y:=2100;
+Waypointlist[4].theta:=0*d2r;
+Waypointlist[4].m:=03;
+Waypointlist[5].x:=0;
+Waypointlist[5].y:=0;
+Waypointlist[5].theta:=0*d2r;
+Waypointlist[5].m:=0;
+Waypointlist[6].x:=4500;
+Waypointlist[6].y:=900;
+Waypointlist[6].theta:=0*d2r;
+Waypointlist[6].m:=3;
+Waypointlist[7].x:=0;
+Waypointlist[7].y:=0;
+Waypointlist[7].theta:=0*d2r;
+Waypointlist[7].m:=0;
+
+//velo.x := 80; 
+//velo.y := 0; 
+//velo.theta := 0;
+
+
+//Main.SetSollVelo(velo);
+
+Main.setSollPoseArray(pSollPoseArray := ADR(Waypointlist));
+startup := FALSE;
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="Spielwiese">
+      <LineId Id="49" Count="29" />
+      <LineId Id="106" Count="1" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="111" Count="0" />
+      <LineId Id="115" Count="0" />
+      <LineId Id="113" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="79" Count="2" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>
