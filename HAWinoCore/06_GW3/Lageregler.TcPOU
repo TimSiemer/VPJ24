@@ -160,54 +160,59 @@ te := streckeTheta;
 Nre := SQRT((xe * xe) + (ye*ye )+ (te*0.03578*te*0.03578)+0.01);
  
 
-		//X-Regler 
+//X-Regler 
 xvelP := Xreg.KP *Xe/Nre  ;
-IF xe < 15 THEN 
+
+IF xe < 15 THEN  // Anit-Windup
 	xvelI := xvelI+Xe/Nre* Xreg.KI*T;
 ELSE 
 	xvelI := 0 ; 
 END_IF
 Coutx := xvelP + xvelI;
-		// Ant Wind up		
-IF Coutx > 150 THEN
-    Coutx := 150; // Maximaler Ausgangswert begrenzen
-ELSIF Coutx < -150 THEN
-   		Coutx := -150; // Minimaler Ausgangswert begrenzen
+// Limiter	
+IF Coutx > 100 THEN
+    Coutx := 100; // Maximaler Ausgangswert begrenzen
+ELSIF Coutx < -100 THEN
+   		Coutx := -100; // Minimaler Ausgangswert begrenzen
 END_IF
-		// Y-Regler
+
+// Y-Regler
 yvelP := Yreg.KP *Ye/Nre;
-IF Ye <15 THEN 
+IF Ye <15 THEN  // Anit-Windup
 	yvelI := yvelI + Ye/Nre*Yreg.KI *T; 
 ELSE 
 	yveli := 0; 
 END_IF
 Couty := yvelP + yvelI;
-		// Limiter	
+// Limiter	
 IF Couty > 100 THEN
    	Couty := 100; // Maximaler Ausgangswert begrenzen
 ELSIF Couty < -100 THEN
     Couty := -100; // Minimaler Ausgangswert begrenzen
 END_IF
-		// T-Regler
+
+// T-Regler
 TvelP := Treg.KP * (te/Nre);
-IF te <0.15 THEN 
+IF te <0.15 THEN  // Anit-Windup
 	TvelI := TvelI+ (te/nre)*Treg.KI * T;
 ELSE 
 	TvelI := 0; 
 END_IF
 Coutt := TvelP + TvelI;
-		// Ant Wind up	
+// Limiter	
 IF Coutt > 100*0.03578 THEN
     Coutt := 100*0.03578; // Maximaler Ausgangswert begrenzen
 ELSIF Coutt < -100*0.03578 THEN
    	Coutt := -100*0.03578; // Minimaler Ausgangswert begrenzen
 END_IF
-		//Berechnung soll Velo
+		
+//Berechnung soll Velo
 Sollvelo.x := Coutx +100;
 Sollvelo.y := Couty;
 Sollvelo.theta := Coutt;
-		// Neue Soll Pose 	
-IF Ye > -5 AND Ye <5 AND te < 0.1 AND te > -0.1 AND Gripper.slider = FALSE THEN			
+
+// Neue Soll Pose 	
+IF Ye > -2 AND Ye <2 AND te < 0.025 AND te > -0.025 AND Gripper.slider = FALSE THEN			
 		SollVelo.x := 0;
 		SollVelo.y := 0;
 		SollVelo.theta := 0;
