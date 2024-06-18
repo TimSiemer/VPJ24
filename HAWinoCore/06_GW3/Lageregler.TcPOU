@@ -182,7 +182,7 @@ ELSE
 	yveli := 0; 
 END_IF
 Couty := yvelP + yvelI;
-		// Ant Wind up		
+		// Limiter	
 IF Couty > 100 THEN
    	Couty := 100; // Maximaler Ausgangswert begrenzen
 ELSIF Couty < -100 THEN
