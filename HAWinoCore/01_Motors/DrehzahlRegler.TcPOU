@@ -82,8 +82,8 @@ fbGetCurTaskIdx  : GETCURTASKINDEX;
 	velocityToMotor2 AT%Q*:INT:=0;
 	velocityToMotor3 AT%Q*:INT:=0;
 	
-	maxMotorRPM : INT := 3600; // in rpm 
-	rWheel 		: INT := 40; //in mm
+	maxmvel : INT := 3600; // in rpm 
+	rrad 		: INT := 40; //in mm
 	i			: LREAL := 0.0625; //gearbox 
 	
 	
@@ -142,9 +142,9 @@ vTheta:=-SollVelo.theta; 	// rad/s
 ////////////////////////////////////
 
 // Calculation of wheel and robot velocities from motorvelocities
-vel.n1 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rWheel)/(10000.0*maxMotorRPM*60);
-vel.n2 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rWheel)/(10000.0*maxMotorRPM*60);
-vel.n3 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rWheel)/(10000.0*maxMotorRPM*60);
+vel.n1 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rrad)/(10000.0*maxmvel*60);
+vel.n2 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rrad)/(10000.0*maxmvel*60);
+vel.n3 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rrad)/(10000.0*maxmvel*60);
 
 // Uint 16 geht bis 65535, Problem : sprünge und signalrauschen.////////////////
 //Signalrauschen und Filter 

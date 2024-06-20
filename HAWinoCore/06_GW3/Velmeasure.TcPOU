@@ -4,8 +4,8 @@
     <Declaration><![CDATA[PROGRAM Velmeasure
 VAR
 
-	maxMotorRPM : INT := 3600; // in rpm 
-	rWheel 		: INT := 40; //in mm
+	maxmvel : INT := 3600; // in rpm 
+	rrad 		: INT := 40; //in mm
 	i			: LREAL := 0.0625; //gearbox 
  
 	vel :Dreh_Mot;
@@ -21,9 +21,9 @@ END_VAR
       <ST><![CDATA[
 
 // Umrechnung der Motorgeschwindigkeit
-vel.n1 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rWheel)/(10000.0*maxMotorRPM*60);
-vel.n2 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rWheel)/(10000.0*maxMotorRPM*60);
-vel.n3 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rWheel)/(10000.0*maxMotorRPM*60);
+vel.n1 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rrad)/(10000.0*maxmvel*60);
+vel.n2 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rrad)/(10000.0*maxmvel*60);
+vel.n3 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rrad)/(10000.0*maxmvel*60);
 //Berechnung der Geschwindigkeit in X,Y und Theta richtung
 velxk :=(vel.n3 - vel.n1) / (2.0 * COS(30.0*PI/180));  			    //in mm / s
 velyk:=((vel.n1 - 2.0 * vel.n2 + vel.n3) / 3.0);            		//in mm / s
