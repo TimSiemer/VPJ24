@@ -212,7 +212,7 @@ Sollvelo.y := Couty;
 Sollvelo.theta := Coutt;
 
 // Neue Soll Pose 	
-IF Ye > -2 AND Ye <2 AND te < 0.025 AND te > -0.025 AND Gripper.slider = FALSE THEN			
+IFYe > -2 AND Ye <2 AND te < 0.025 AND te > -0.025 AND Gripper.slider = FALSE THEN			
 		SollVelo.x := 0;
 		SollVelo.y := 0;
 		SollVelo.theta := 0;

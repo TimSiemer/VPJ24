@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="Velmeasure" Id="{421a9727-38b7-444e-9c11-8f5e3ff6bde4}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM Velmeasure
+VAR
+
+	maxMotorRPM : INT := 3600; // in rpm 
+	rWheel 		: INT := 40; //in mm
+	i			: LREAL := 0.0625; //gearbox 
+ 
+	vel :Dreh_Mot;
+	
+	velXk: LREAL;
+	velyk: LREAL;
+	veltk: LREAL;
+
+
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+
+// Calculation of wheel and robot velocities from motorvelocities
+vel.n1 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rWheel)/(10000.0*maxMotorRPM*60);
+vel.n2 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rWheel)/(10000.0*maxMotorRPM*60);
+vel.n3 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rWheel)/(10000.0*maxMotorRPM*60);
+
+velxk :=(vel.n3 - vel.n1) / (2.0 * COS(30.0*PI/180));  			    //in mm / s
+velyk:=((vel.n1 - 2.0 * vel.n2 + vel.n3) / 3.0);            		//in mm / s
+veltk:=(vel.n1 + vel.n2 + vel.n3) / (3.0 * 135.0);    				//in rad / s
+
+
+    </Implementation>
+    <LineIds Name="MotorVelocityMeas">
+      <LineId Id="49" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="10" Count="1" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="40" Count="1" />
+      <LineId Id="32" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

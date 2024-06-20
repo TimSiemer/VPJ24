@@ -117,8 +117,6 @@ fbGetCurTaskIdx  : GETCURTASKINDEX;
 	avg_sig: LREAL; 
 	vglvel1: LREAL;
 	
-	test1 : BOOL := FALSE; 
-	test2 : BOOL := FALSE;
 END_VAR
 VAR CONSTANT
 END_VAR]]></Declaration>
@@ -144,15 +142,15 @@ vTheta:=-SollVelo.theta; 	// rad/s
 ////////////////////////////////////
 
 // Calculation of wheel and robot velocities from motorvelocities
-vel.n1 := UINT_TO_INT(IstVelo_n1)/10000.0*maxMotorRPM/60*i*2*PI*rWheel;
-vel.n2 := UINT_TO_INT(IstVelo_n2)/10000.0*maxMotorRPM/60*i*2*PI*rWheel;
-vel.n3 := UINT_TO_INT(IstVelo_n3)/10000.0*maxMotorRPM/60*i*2*PI*rWheel;
+vel.n1 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rWheel)/(10000.0*maxMotorRPM*60);
+vel.n2 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rWheel)/(10000.0*maxMotorRPM*60);
+vel.n3 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rWheel)/(10000.0*maxMotorRPM*60);
 
 // Uint 16 geht bis 65535, Problem : sprünge und signalrauschen.////////////////
 //Signalrauschen und Filter 
 
 velxk :=(vel.n3 - vel.n1) / (2.0 * COS(30.0*PI/180));  			    //in mm / s
-velyk:=((vel.n1 - 2.0 * vel.n2 + vel.n3) / 3.0);            		//in mm / (-1)*
+velyk:=((vel.n1 - 2.0 * vel.n2 + vel.n3) / 3.0);            		//in mm / s
 veltk:=(vel.n1 + vel.n2 + vel.n3) / (3.0 * 135.0);    				//in rad / s
 
 //Glätten der werte
@@ -169,47 +167,57 @@ Main.SetistVelo(istVelo);
 ////////////////////////////////////////////////
 	
 // Vx Regler 
+	//Berechnugn des Fehlers e
 	e.x := vX- gvelxk;
 	
+	//Berechnung des P-Anteils
 	nx.KP := vxr.KP * e.x;
 	
+	//Berechnugn des I-Anteils mit Anti-Windup
 	IF ABS(e.x) < pos_out_wind  THEN   
 		nx.KI := nx.KI + vxr.KI*e.x*T;
 	ELSIF ABS(e.x) > pos_out_wind  THEN
 		nx.KI := (e.x/ABS(e.x))*pos_out_wind;
 	END_IF 
 
-	vinx := nx.KI+ nx.KP ; // gesch in x
+	//Berechnung der Geschindigkeitsausgabe in X
+	vinx := nx.KI+ nx.KP ; 
 
 // Vy Regler 
+	//Berechnugn des Fehlers e
 	e.y := vY- gvelyk;
 	
+	//Berechnung des P-Anteils
 	ny.KP := vyr.KP * e.y;
 	
+	//Berechnugn des I-Anteils mit Anti-Windup
 	IF ABS(e.y) < pos_out_wind   THEN   
 		ny.KI := ny.KI + vyr.KI*e.y*T;	
 	ELSIF ABS(e.y) > pos_out_wind  THEN
 		ny.KI := (e.y/ABS(e.y))*pos_out_wind;	
 	END_IF 
 	
-	viny := ny.KI+ ny.KP ; // gesch in y	
+	//Berechnung der Geschindigkeitsausgabe in Y
+	viny := ny.KI+ ny.KP ;	
 	
 // Vt Regler 
+	//Berechnugn des Fehlers 
 	e.theta := vTheta- gveltk;
 	
+	//Berechnung des P-Anteils
 	nt.KP := vtr.KP * e.theta;
 
+	//Berechnugn des I-Anteils mit Anti-Windup
 	IF ABS(e.theta)< (pos_out_wind*0.03578)  THEN    // umrechnung !
 		nt.KI := nt.KI + vtr.KI*e.theta*T;
-		test1 := TRUE;
 	ELSIF ABS (e.theta) > (pos_out_wind*0.03578)  THEN
 		nt.KI := (e.theta/ABS(e.theta))*pos_out_wind*0.03578;
-		test2 := TRUE;
 	END_IF 
 	
-	vint := nt.KI+ nt.KP ; // gesch in t
+	//Berechnung der Geschindigkeitsausgabe in Theta
+	vint := nt.KI+ nt.KP ; 
 
-
+// Berechnung der Motorgeschwindigekit aus den oben berechneten Geschwindigkeiten
 velocityMotor1 := (-vinx * COS(30.0*PI/180))	+ (viny * COS(60.0*PI/180))	+ (vint * 135.0);
 velocityMotor2 := 0.0						+ (-vinY)						+ (vint * 135.0);
 velocityMotor3 := (vinX * COS(30.0*PI/180))	+ (vinY * COS(60.0*PI/180))	+ (vint * 135.0);
