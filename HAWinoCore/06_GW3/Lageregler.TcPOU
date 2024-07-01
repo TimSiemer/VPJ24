@@ -60,6 +60,8 @@ SollPose := Main.getSollPose();
 IstPose := Main.getIstPose();
 Bumperaktiv := Main.getBumperAktiv();
 
+// Bestimmung der Fahrmodi
+
 CASE SollPose.m OF
 	0: Fahrstufe0();
 	1: Fahrstufe1();
@@ -72,10 +74,10 @@ ELSE
 	fahrstufe0();	
 END_CASE
 
-//Trapezprofile 
+// Bestimmung der Geschwindigkeit mittels Beschleunigungsprofil
 	Trapezprofil(sollvelo); 
 
-
+// Überprüfung ob Bumper aktiv ist / Übergeben der neuen Sollgeschwindigkeit
 IF Bumperaktiv THEN
 	Main.SetSollVelo(Stop);
 ELSE
@@ -143,20 +145,23 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[GripperEndlage := Main.getGripperSLiderAusgeloest();
  
+// Auslesen der Soll und ist Position 
 sollPos := Main.getSollPose();
 istPos := Main.getIstPose();
 TGreifer();
 
- 
+// Berechnung der Verbleibenden Strecke aus Soll- und Istposition 
 streckeX := sollPos.x*COS(istPos.theta) - istPos.x*COS(istPos.theta) - istPos.y*SIN(istPos.theta) + sollPos.y*SIN(istPos.theta);
 streckeY := sollPos.y*COS(istPos.theta) - istPos.y*COS(istPos.theta) + istPos.x*SIN(istPos.theta) - sollPos.x*SIN(istPos.theta);
 streckeTheta := Main.absToDynTheta(absolutThetaSoll:=sollPos.theta, absolutThetaIst := istPos.theta);
-		// Regeldifferenz
-		// vx, vy und vt sind Verstärkungen, damit der Fehler größer gewichtet wird 
+
+// Regeldifferenz
+// vx, vy und vt sind Verstärkungen, damit der Fehler größer gewichtet wird 
 Xe := streckeX; 
 Ye := streckeY;
 te := streckeTheta;
-		// Normierung 
+
+// Normierung 
 Nre := SQRT((xe * xe) + (ye*ye )+ (te*0.03578*te*0.03578)+0.01);
  
 
@@ -211,7 +216,8 @@ Sollvelo.x := Coutx +100;
 Sollvelo.y := Couty;
 Sollvelo.theta := Coutt;
 
-// Neue Soll Pose 	
+
+// Definition akzeptabler Zone und Update Sollpose	
 IFYe > -2 AND Ye <2 AND te < 0.025 AND te > -0.025 AND Gripper.slider = FALSE THEN			
 		SollVelo.x := 0;
 		SollVelo.y := 0;
@@ -261,14 +267,12 @@ END_VAR
       <Implementation>
         <ST><![CDATA[
 
-// Trasformation in Roboter Koordinaten
-
+// Berechnung der Verbleibenden Strecke aus Soll- und Istposition 
 streckeX := sollPose.x*COS(istPose.theta) - istPose.x*COS(istPose.theta) - istPose.y*SIN(istPose.theta) + sollPose.y*SIN(IstPose.theta);
 streckeY := sollPose.y*COS(IstPose.theta) - IstPose.y*COS(IstPose.theta) + IstPose.x*SIN(IstPose.theta) - sollPose.x*SIN(IstPose.theta);
 streckeTheta := Main.absToDynTheta(absolutThetaSoll:=sollPose.theta, absolutThetaIst := IstPose.theta);
 
 // Regeldifferenz
-
 Xe := streckeX; 
 Ye := streckeY;
 te := streckeTheta; 
@@ -336,7 +340,7 @@ Nre := SQRT((xe * xe) + (ye*ye )+ (te*0.03578*te*0.03578)+0.01);
 	Sollvelo.y := Couty;
 	Sollvelo.theta := Coutt;
 	
-// Neue Soll Pose 	
+// Definition akzeptabler Zone und Update Sollpose	
 	IF Xe < 3 AND Xe > -3 AND Ye > -2 AND Ye <2 AND te < 0.025 AND te > -0.025 THEN
 		Sollvelo.x :=0;
 		Sollvelo.y := 0;
@@ -373,39 +377,37 @@ VAR
 	te: LREAL;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[// Get soll- and istPose 
-
+        <ST><![CDATA[
+			
+// Get soll- and istPose 
 sollPos := Main.getSollPose();
-istPos := Main.getIstPose(); // Sollte Bereinigt sein 
+istPos := Main.getIstPose();
 
 
 
-// Trasformation in Roboter Koordinaten
-
+// Berechnung der Verbleibenden Strecke aus Soll- und Istposition 
 streckeX := sollPos.x*COS(istPos.theta) - istPos.x*COS(istPos.theta) - istPos.y*SIN(istPos.theta) + sollPos.y*SIN(istPos.theta);
 streckeY := sollPos.y*COS(istPos.theta) - istPos.y*COS(istPos.theta) + istPos.x*SIN(istPos.theta) - sollPos.x*SIN(istPos.theta);
 streckeTheta := Main.absToDynTheta(absolutThetaSoll:=sollPos.theta, absolutThetaIst := istPos.theta);
 
-// Berechnung der Geschwindigkeit und Normierung 
-
+// Berechnung der Geschwindigkeit und Normierung der Geschwindigekeit auf 100 mm/s bzw. rad/s
 vX := 100 * streckeX/(SQRT(streckeX*streckeX + streckeY*streckeY + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
 vY := 100 * streckeY/(SQRT(streckeX*streckeX + streckeY*streckeY + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
 vTheta := 100 * (StreckeTheta) /(SQRT(streckeX*streckeX + streckeY*streckeY + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
 
 // Regeldifferenz
-
 Xe := streckeX; 
 Ye := streckeY;
 te :=streckeTheta; 
 
-
+// Berechnung der neuen Sollgeschwindigkeit
 SollVelo.x := vX * 1.5;
 SollVelo.y := vY * 1.5;
 SollVelo.theta := vTheta * 1.5;
 
 
 
-
+// Definition akzeptabler Zone und Update Sollpose	
 IF Xe < 20 AND Xe > -20 AND Ye > -20 AND Ye <20 AND te < 0.5 AND te > -0.5 THEN
 	Main.updateSollPose();
 END_IF;]]></ST>
@@ -433,49 +435,39 @@ VAR
 	Xe: LREAL;
 	Ye: LREAL;
 	te: LREAL;
-	u: INT;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[//Startup 
-IF u <> 1 THEN 
-	sollPos.x := 6888;
-	sollPos.y := 1344; 
-	sollPos.theta := 0; 
-END_IF
 
-
+        <ST><![CDATA[
 // Get soll- and istPose 
-
 sollPos := Main.getSollPose();
 istPos := Main.getIstPose();
 
 
 
-// Trasformation in Roboter Koordinaten
-
+// Berechnung der Verbleibenden Strecke aus Soll- und Istposition 
 streckeX := sollPos.x*COS(istPos.theta) - istPos.x*COS(istPos.theta) - istPos.y*SIN(istPos.theta) + sollPos.y*SIN(istPos.theta);
 streckeY := sollPos.y*COS(istPos.theta) - istPos.y*COS(istPos.theta) + istPos.x*SIN(istPos.theta) - sollPos.x*SIN(istPos.theta);
 streckeTheta := Main.absToDynTheta(absolutThetaSoll:=sollPos.theta, absolutThetaIst := istPos.theta);
 
 
-// Berechnung der Geschwindigkeit und Normierung 
-
+// Berechnung der Geschwindigkeit und Normierung der Geschwindigekeit auf 100 mm/s bzw. rad/s
 vX := 100 * streckeX/(SQRT(streckex*streckex + streckey*streckey + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
 vY := 100 * streckeY/(SQRT(streckex*streckex + streckey*streckey + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
 vTheta := 100 * streckeTheta/(SQRT(streckex*streckex + streckey*streckey + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
 
 // Regeldifferenz
-
 Xe := streckeX; 
 Ye := streckeY;
 te := streckeTheta; 
 
+// Bestimmung der neuen Sollgeschwindigkeit
 SollVelo.x := vX * 3;
 SollVelo.y := vY * 3;
 SollVelo.theta := vTheta * 3;
 
 
-
+// Definition akzeptabler Zone und Update Sollpose	
 IF Xe < 30 AND Xe > -30 AND Ye > -30 AND Ye <30 AND te < 1 AND te > -1 THEN
 	Main.updateSollPose();
 END_IF;]]></ST>
@@ -496,7 +488,8 @@ END_VAR
 SollVelo.x := 30;
 SollVelo.y := 65;
 SollVelo.theta := 0;
-		
+
+// Update der Sollpose		
 IF connected THEN
 	SollVelo.x := 0;
 	SollVelo.y := 0;
@@ -527,39 +520,37 @@ VAR
 	te: LREAL;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[// Get soll- and istPose 
-
+        <ST><![CDATA[
+			
+// Get soll- and istPose 
 sollPos := Main.getSollPose();
 istPos := Main.getIstPose(); // Sollte Bereinigt sein 
 
 
 
-// Trasformation in Roboter Koordinaten
-
+// Berechnung der Verbleibenden Strecke aus Soll- und Istposition 
 streckeX := sollPos.x*COS(istPos.theta) - istPos.x*COS(istPos.theta) - istPos.y*SIN(istPos.theta) + sollPos.y*SIN(istPos.theta);
 streckeY := sollPos.y*COS(istPos.theta) - istPos.y*COS(istPos.theta) + istPos.x*SIN(istPos.theta) - sollPos.x*SIN(istPos.theta);
 streckeTheta := Main.absToDynTheta(absolutThetaSoll:=sollPos.theta, absolutThetaIst := istPos.theta);
 
-// Berechnung der Geschwindigkeit und Normierung 
-
+// Berechnung der Geschwindigkeit und Normierung der Geschwindigekeit auf 100 mm/s bzw. rad/s
 vX := 100 * streckeX/(SQRT(streckeX*streckeX + streckeY*streckeY + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
 vY := 100 * streckeY/(SQRT(streckeX*streckeX + streckeY*streckeY + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
 vTheta := 100 * (StreckeTheta) /(SQRT(streckeX*streckeX + streckeY*streckeY + 0.03578*streckeTheta*0.03578*streckeTheta)+0.01);
 
 // Regeldifferenz
-
 Xe := streckeX; 
 Ye := streckeY;
 te :=streckeTheta; 
 
-
+// Bestimmung der neuen Sollgeschwindigkeit
 SollVelo.x := vX * 1.5;
 SollVelo.y := vY * 1.5;
 SollVelo.theta := vTheta * 1.5;
 
 
 
-
+// Definition akzeptabler Zone und Update Sollpose	
 IF Xe < 20 AND Xe > -20 AND Ye > -20 AND Ye <20 AND te < 0.5 AND te > -0.5 THEN
 	Main.updateSollPose();
 END_IF;]]></ST>
@@ -582,17 +573,22 @@ VAR
 
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF startup THEN
+        <ST><![CDATA[
+
+// Definition des Startups
+IF startup THEN
 sollveloalt := sollvelo; 
 startup := FALSE;
 END_IF
 
 
-//IF i = 2 THEN
+// Berechnung der Abweichung aus alter und neuer Geschwindigkeit
 et.x := sollvelo.x - sollveloalt.x;
 et.y := sollvelo.y - sollveloalt.y;
 et.theta := sollvelo.theta - sollveloalt.theta; 
 
+// Berechnugn der neuen Geschwindigkeit, wenn Abweichung > 30 mm/s
+// Aber nur wenn es die Fahrmodi 3 oder 4 sind ! 
 IF ABS(et.x) > 30 AND (Sollpose.m = 3 OR sollpose.m = 4) THEN
 	sollvelotrapez.x := sollvelotrapez.x + ((et.x/ABS(et.x))*3200*dTime) ; 
 ELSE 
@@ -611,11 +607,9 @@ ELSE
 	Sollvelotrapez.Theta := sollvelo.theta	; 	
 END_IF
 
+// Ausgabe der neuen Sollvelo
 sollveloalt := sollvelotrapez;
-//i := 0;
-//ELSE 
-//	i := 1+i; 
-//END_IF]]></ST>
+
       </Implementation>
     </Method>
     <LineIds Name="Lageregler">
