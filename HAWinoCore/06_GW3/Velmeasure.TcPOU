@@ -24,6 +24,7 @@ END_VAR
 vel.n1 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rrad)/(10000.0*maxmvel*60);
 vel.n2 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rrad)/(10000.0*maxmvel*60);
 vel.n3 := (UINT_TO_INT(IstVelo_n1)*i*2*PI*rrad)/(10000.0*maxmvel*60);
+
 //Berechnung der Geschwindigkeit in X,Y und Theta richtung
 velxk :=(vel.n3 - vel.n1) / (2.0 * COS(30.0*PI/180));  			    //in mm / s
 velyk:=((vel.n1 - 2.0 * vel.n2 + vel.n3) / 3.0);            		//in mm / s
