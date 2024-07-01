@@ -4,17 +4,17 @@
     <Declaration><![CDATA[PROGRAM Beobachter
 VAR CONSTANT
 	T : LREAL := 0.01; 		// Zykluszeit	
-	CAMDELAY : INT := 16; 	// Delay entspricht CAMDELAY * T -> 16*0.01s = 160ms
+	CAMDELAY : INT := 16; 		// Delay entspricht CAMDELAY * T -> 16*0.01s = 160ms
 END_VAR
 
 VAR
 	startup : BOOL := 1;	
 
-	istPoseCamera :  RobotPose;
-	istPoseModel : RobotPose;
-	istVelo : RobotPose;
+	istPoseCamera :  RobotPose;	//Messwert
+	istPoseModel : RobotPose;	/Vorhersage
+	istVelo : RobotPose;		//Modelleingang
 	
-	istPose : RobotPose;
+	istPose : RobotPose;		//Ausgabe
 	
 	vX, vY, vTheta : LREAL;
 	
@@ -52,11 +52,12 @@ END_VAR
       <ST><![CDATA[istPoseCamera := Main.getIstPoseCamera();
 istVelo := Main.getIstVeloEnc();
 
-//Trafo
+//Transformation der Geschwindigkeiten von Roboter in Weltkoordinaten
 vX := (COS(istPose.theta)* istVelo.x - SIN(istPose.theta) * istVelo.y);
 vY := (SIN(istPose.theta)* istVelo.x +COS(istPose.theta) * istVelo.y);
 vTheta := istVelo.theta;
 
+//einmaliges Initialisieren der Koordinaten bei erster regulärer Position
 IF startup and istPoseCamera.y <> 0 THEN
  	
 	zVars[1] := istPoseCamera.x;
@@ -86,20 +87,21 @@ ELSIF zVars[3] < -3.1416 THEN
 END_IF
 
 
-//Berechnen des Modell zu Messwertfehler
-fehlergain := 7/(istPoseCamera.e * 2 + 0.1);	//hat am besten funktioniert
+//Berechnen des Fehlergains
+fehlergain := 7/(istPoseCamera.e * 2 + 0.1);		//hat am besten funktioniert
 
-
+//Speichern der Positionswerte in Array zum verzögerten vergleichen mit den Kamerawerten
 FOR i:= 0 TO CAMDELAY - 2 BY 1 DO				//i geht von 0 bis 14 sodass
-	index := CAMDELAY - i;						//index von 16 - 2 geht.
-	zOutVars[1,index] := zOutVars[1,index-1];
+	index := CAMDELAY - i;					//index von 16 bis 2 geht.
+	zOutVars[1,index] := zOutVars[1,index-1];		//Verschieben der Posen im Array
 	zOutVars[2,index] := zOutVars[2,index-1];
 	zOutVars[3,index] := zOutVars[3,index-1];
 END_FOR
-	zOutVars[1,1] := zVars[1];
+	zOutVars[1,1] := zVars[1];				//einspeichern neuer Pose
 	zOutVars[2,1] := zVars[2];
 	zOutVars[3,1] := zVars[3];
 
+//Berechnung des Fehlervektors
 zVarsDelta[1] := istPoseCamera.x - zOutVars[1,CAMDELAY];
 zVarsDelta[2] := istPoseCamera.y - zOutVars[2,CAMDELAY];
 zVarsDelta[3] := Main.absToDynTheta(absolutThetaSoll:=istPoseCamera.theta, absolutThetaIst := zOutVars[3,CAMDELAY]);
