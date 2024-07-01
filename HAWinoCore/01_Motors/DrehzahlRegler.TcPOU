@@ -13,7 +13,6 @@ VAR
 	
 	pos_out_wind : LREAL := 100;
 
-// Definition der Eingänge 	
 	SollVelo : RobotPose; 
 	IstVelo : RobotPose; 
 	velMo: Dreh_Mot;
@@ -154,15 +153,16 @@ velyk:=((vel.n1 - 2.0 * vel.n2 + vel.n3) / 3.0);            		//in mm / s
 veltk:=(vel.n1 + vel.n2 + vel.n3) / (3.0 * 135.0);    				//in rad / s
 
 //Glätten der werte
-
 gvelxk := SmoothSignal(velxk, gvelxk); 
 gvelyk := SmoothSignal(velyk, gvelyk);
 gveltk := SmoothSignal(veltk, gveltk);
+
 
 IstVelo.x := -velxk;
 istvelo.y := -velyk;
 istvelo.theta := -veltk;
 
+//Übergabe der istVelo an die Main
 Main.SetistVelo(istVelo); 
 ////////////////////////////////////////////////
 	

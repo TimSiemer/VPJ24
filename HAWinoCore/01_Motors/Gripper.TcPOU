@@ -34,7 +34,7 @@ CASE state OF
 ///////////////////////////////////////////////////////////////		
 	CoreGripperControlState.Opening:
 		driveEnable:=1;
-		driveVelocity:=25000;
+		driveVelocity:=25000; //Reduktion der Motorgeschw. damit die Sicherung nicht zerstört wird
 		timer(IN:=1);
 		
 		IF timer.Q THEN state := CoreGripperControlState.Open;
@@ -48,7 +48,7 @@ CASE state OF
 ///////////////////////////////////////////////////////////////		
 	CoreGripperControlState.Closing:
 		driveEnable:=1;
-		driveVelocity:=-25000;
+		driveVelocity:=-25000;//Reduktion der Motorgeschw. damit die Sicherung nicht zerstört wird
 		timer(IN:=1);
 		
 		IF timer.Q THEN state := CoreGripperControlState.Closed;
